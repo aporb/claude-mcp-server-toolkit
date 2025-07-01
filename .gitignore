@@ -1,0 +1,27 @@
+# Sensitive configuration files
+config/config.sh
+.env
+*.env
+!.env.template
+
+# Log files
+logs/*.log
+
+# Lock files
+vscode-integration/.server-lock
+
+# Backup files
+backups/
+
+# Data directories (may contain sensitive information)
+data/
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Temporary files
+*.tmp
+*.temp
