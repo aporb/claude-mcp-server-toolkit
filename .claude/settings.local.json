@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(npx @github/github-mcp-server:*)",
+      "Bash(npm install:*)",
+      "Bash(npx @modelcontextprotocol/server-github:*)",
+      "Bash(claude --debug)",
+      "Bash(docker logs:*)",
+      "Bash(bash:*)",
+      "Bash(docker run:*)",
+      "Bash(docker start:*)",
+      "Bash(docker rm:*)",
+      "Bash(docker inspect:*)"
+    ],
+    "deny": []
+  }
+}
