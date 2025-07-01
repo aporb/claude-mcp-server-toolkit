@@ -6,6 +6,8 @@ config/config.sh
 
 # Log files
 logs/*.log
+logs/*.json
+!logs/.gitkeep
 
 # Lock files
 vscode-integration/.server-lock
@@ -21,6 +23,7 @@ data/
 
 # VS Code
 .vscode/
+.claude/
 
 # Temporary files
 *.tmp
