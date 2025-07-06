@@ -25,6 +25,9 @@ data/
 .vscode/
 .claude/
 
+# External repositories
+context7-mcp/
+
 # Temporary files
 *.tmp
 *.temp
