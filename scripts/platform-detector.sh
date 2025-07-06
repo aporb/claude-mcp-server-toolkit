@@ -25,9 +25,32 @@ readonly CROSS_MARK="✗"
 readonly INFO_SIGN="ℹ"
 
 # Platform detection results
-declare -A PLATFORM_DETECTED
-declare -A PLATFORM_PATHS
-declare -A PLATFORM_VERSIONS
+# Using associative arrays for platform data
+PLATFORM_DETECTED=()
+PLATFORM_PATHS=()
+PLATFORM_VERSIONS=()
+
+# Initialize arrays with default values
+init_platform_arrays() {
+    local platforms=("claude_desktop" "claude_code" "vscode_cline" "gemini" "jan")
+    for platform in "${platforms[@]}"; do
+        PLATFORM_DETECTED[$platform]="false"
+        PLATFORM_PATHS[$platform]=""
+        PLATFORM_VERSIONS[$platform]="unknown"
+    done
+}
+
+# Helper function to set platform data
+set_platform_data() {
+    local platform="$1"
+    local detected="$2"
+    local path="$3"
+    local version="$4"
+    
+    PLATFORM_DETECTED[$platform]="$detected"
+    PLATFORM_PATHS[$platform]="$path"
+    PLATFORM_VERSIONS[$platform]="$version"
+}
 
 # =============================================================================
 # Detection Functions
@@ -42,47 +65,63 @@ print_color() {
 
 # Detect Claude Desktop
 detect_claude_desktop() {
-    local config_path="$HOME/.config/claude/claude_desktop_config.json"
-    local alt_config_path="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
+    local config_paths=(
+        "$HOME/Library/Application Support/Claude/claude_desktop_config.json"  # macOS
+        "$HOME/.config/claude/claude_desktop_config.json"                      # Linux
+        "$APPDATA/Claude/claude_desktop_config.json"                          # Windows
+    )
+    
+    local app_paths=(
+        "/Applications/Claude.app"                                            # macOS
+        "$HOME/.local/share/Claude"                                          # Linux
+        "$LOCALAPPDATA/Programs/Claude"                                      # Windows
+    )
+    
+    local detected="false"
+    local config_path=""
+    local version="unknown"
     
     # Check for Claude Desktop installation
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS
-        if [ -d "/Applications/Claude.app" ]; then
-            PLATFORM_DETECTED["claude_desktop"]="true"
-            if [ -f "$alt_config_path" ]; then
-                PLATFORM_PATHS["claude_desktop"]="$alt_config_path"
-            else
-                PLATFORM_PATHS["claude_desktop"]="$config_path"
-            fi
+        # macOS detection
+        if [ -d "${app_paths[0]}" ]; then
+            detected="true"
+            version=$(defaults read "${app_paths[0]}/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || echo "unknown")
             
-            # Try to get version from app
-            local version=$(defaults read "/Applications/Claude.app/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || echo "unknown")
-            PLATFORM_VERSIONS["claude_desktop"]="$version"
-            return 0
+            # Check for config file
+            if [ -f "${config_paths[0]}" ]; then
+                config_path="${config_paths[0]}"
+            elif [ -f "${config_paths[1]}" ]; then
+                config_path="${config_paths[1]}"
+            fi
         fi
     elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        # Linux
-        if command -v claude-desktop >/dev/null 2>&1; then
-            PLATFORM_DETECTED["claude_desktop"]="true"
-            PLATFORM_PATHS["claude_desktop"]="$config_path"
-            local version=$(claude-desktop --version 2>/dev/null | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown")
-            PLATFORM_VERSIONS["claude_desktop"]="$version"
-            return 0
+        # Linux detection
+        if [ -d "${app_paths[1]}" ] || command -v claude-desktop >/dev/null 2>&1; then
+            detected="true"
+            version=$(claude-desktop --version 2>/dev/null | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown")
+            
+            if [ -f "${config_paths[1]}" ]; then
+                config_path="${config_paths[1]}"
+            fi
         fi
     elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
-        # Windows
-        local win_path="$APPDATA/Claude/claude_desktop_config.json"
-        if [ -f "$win_path" ]; then
-            PLATFORM_DETECTED["claude_desktop"]="true"
-            PLATFORM_PATHS["claude_desktop"]="$win_path"
-            PLATFORM_VERSIONS["claude_desktop"]="unknown"
-            return 0
+        # Windows detection
+        if [ -d "${app_paths[2]}" ]; then
+            detected="true"
+            
+            if [ -f "${config_paths[2]}" ]; then
+                config_path="${config_paths[2]}"
+            fi
+            
+            # Try to get version from Windows registry
+            version=$(reg query "HKCU\Software\Claude" /v "Version" 2>/dev/null | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown")
         fi
     fi
     
-    PLATFORM_DETECTED["claude_desktop"]="false"
-    return 1
+    set_platform_data "claude_desktop" "$detected" "$config_path" "$version"
+    [ "$detected" = "true" ]
+    return $?
 }
 
 # Detect Claude Code (VS Code extension)
@@ -193,6 +232,9 @@ detect_jan() {
 
 # Run all platform detections
 detect_all_platforms() {
+    # Initialize platform arrays
+    init_platform_arrays
+    
     print_color "$CYAN" "╔═══════════════════════════════════════════════════════╗"
     print_color "$CYAN" "║          AI Platform Detection v$SCRIPT_VERSION                ║"
     print_color "$CYAN" "╚═══════════════════════════════════════════════════════╝"
