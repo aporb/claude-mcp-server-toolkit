@@ -23,7 +23,6 @@ echo "Updating Node.js packages..."
 npm update -g @upstash/context7-mcp@latest
 npm update -g @agentdeskai/browser-tools-mcp@latest
 npm update -g puppeteer-mcp-server
-npm update -g knowledgegraph-mcp-server
 
 # Update Docker images
 echo "Updating Docker images..."

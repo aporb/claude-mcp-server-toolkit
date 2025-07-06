@@ -22,15 +22,13 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 # - Test with: echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | bash "$PROJECT_ROOT/scripts/github-mcp-connector.sh"
 # =============================================================================
 
-# Container ID for the running GitHub MCP server
-# Update this if you start a new container
-CONTAINER_ID="0688b8e5847b"
+# Find the running container ID dynamically
+CONTAINER_ID=$(docker ps --filter ancestor=ghcr.io/github/github-mcp-server --format "{{.ID}}" | head -n1)
 
-# Verify the container is running
-if ! docker ps --format "table {{.ID}}" | grep -q "$CONTAINER_ID"; then
-    echo "Error: GitHub MCP container $CONTAINER_ID is not running" >&2
-    echo "Available containers:" >&2
-    docker ps --filter ancestor=ghcr.io/github/github-mcp-server --format "table {{.ID}}\t{{.Status}}" >&2
+# Verify a container was found and is running
+if [ -z "$CONTAINER_ID" ] || ! docker ps --format "{{.ID}}" | grep -q "^$CONTAINER_ID$"; then
+    echo "Error: No running GitHub MCP container found." >&2
+    echo "Please start one with: docker run -d -e GITHUB_PERSONAL_ACCESS_TOKEN=your_token ghcr.io/github/github-mcp-server" >&2
     exit 1
 fi
 
