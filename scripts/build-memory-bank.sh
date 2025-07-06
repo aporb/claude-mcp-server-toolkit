@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Determine the project root dynamically
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
 echo "🔧 Building Memory Bank MCP Server Docker image..."
 
 # Check if Docker is running
@@ -57,7 +61,7 @@ if [ $? -eq 0 ]; then
   
   # Add to Claude MCP configuration
   echo "Adding Memory Bank MCP Server to Claude configuration..."
-  source ~/Documents/claude-mcp-servers/config/config.sh
+  source "$PROJECT_ROOT/config/config.sh"
   
   # First remove any existing configuration
   claude mcp remove "memory-bank-mcp-server" 2>/dev/null || true

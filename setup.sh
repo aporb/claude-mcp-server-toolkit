@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Determine the project root dynamically
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
 # =============================================================================
 # Claude MCP Servers Setup Script
 # =============================================================================
@@ -35,7 +39,7 @@ GITHUB_CONTAINER=$(docker ps --filter ancestor=ghcr.io/github/github-mcp-server 
 if [ -n "$GITHUB_CONTAINER" ]; then
     echo "✅ Found running GitHub MCP container: $GITHUB_CONTAINER"
     # Update the connector script with the current container ID
-    sed -i '' "s/CONTAINER_ID=\".*\"/CONTAINER_ID=\"$GITHUB_CONTAINER\"/" scripts/github-mcp-connector.sh
+    sed -i '' "s/CONTAINER_ID=".*"/CONTAINER_ID=\"$GITHUB_CONTAINER\"/" "$PROJECT_ROOT/scripts/github-mcp-connector.sh"
     echo "✅ Updated github-mcp-connector.sh with current container ID"
 else
     echo "⚠️  No GitHub MCP container found. You'll need to start one:"
@@ -45,12 +49,15 @@ fi
 # Make scripts executable
 echo ""
 echo "🔧 Setting up scripts and permissions..."
-chmod +x scripts/*.sh vscode-integration/start-servers.sh
+chmod +x "$PROJECT_ROOT/scripts/"*.sh "$PROJECT_ROOT/vscode-integration/start-servers.sh"
 echo "✅ Made scripts executable"
 
+# Generate config/config.sh from .env
+bash "$PROJECT_ROOT/scripts/sync-env-to-config.sh"
+
 # Set secure permissions for config file
-if [ -f config/config.sh ]; then
-    chmod 600 config/config.sh
+if [ -f "$PROJECT_ROOT/config/config.sh" ]; then
+    chmod 600 "$PROJECT_ROOT/config/config.sh"
     echo "✅ Set secure permissions for config file"
 else
     echo "⚠️  config/config.sh not found - you may need to create it"
@@ -90,8 +97,8 @@ fi
 # Run health check
 echo ""
 echo "🔍 Running health check..."
-if [ -f scripts/health-check.sh ]; then
-    bash scripts/health-check.sh
+if [ -f "$PROJECT_ROOT/scripts/health-check.sh" ]; then
+    bash "$PROJECT_ROOT/scripts/health-check.sh"
 else
     echo "⚠️  Health check script not found"
 fi
@@ -114,7 +121,7 @@ fi
 
 echo ""
 echo "🎯 Next steps:"
-echo "1. Edit config/config.sh with your GitHub token and other credentials"
+echo "1. Edit .env with your GitHub token and other credentials (copy from .env.template if it doesn't exist)"
 
 if [ -z "$GITHUB_CONTAINER" ]; then
     echo "2. Start GitHub MCP container:"

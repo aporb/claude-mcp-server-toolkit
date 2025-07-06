@@ -1,5 +1,21 @@
 #!/bin/bash
 
+# Determine the project root dynamically
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Load environment variables
+# Try .env file first, then fall back to config.sh
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    source "$PROJECT_ROOT/.env"
+elif [ -f "$PROJECT_ROOT/config/config.sh" ]; then
+    source "$PROJECT_ROOT/config/config.sh"
+else
+    echo "❌ No environment configuration found!"
+    echo "Please create .env file or run: bash scripts/setup-github-token.sh"
+    exit 1
+fi
+
 echo "Running MCP server security audit..."
 
 # Check for exposed tokens in environment
@@ -10,11 +26,11 @@ if [ $? -eq 0 ]; then
 fi
 
 # Check permissions on config file
-if [ -f ~/Documents/claude-mcp-servers/config/config.sh ]; then
-  permissions=$(stat -f "%A" ~/Documents/claude-mcp-servers/config/config.sh)
+if [ -f "$PROJECT_ROOT/config/config.sh" ]; then
+  permissions=$(stat -f "%A" "$PROJECT_ROOT/config/config.sh")
   if [ "$permissions" != "600" ]; then
     echo "⚠️ Configuration file has loose permissions: $permissions"
-    echo "Recommended: chmod 600 ~/Documents/claude-mcp-servers/config/config.sh"
+    echo "Recommended: chmod 600 "$PROJECT_ROOT/config/config.sh""
   fi
 fi
 

@@ -1,35 +1,43 @@
 #!/bin/bash
 
+# Determine the project root dynamically
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
 echo "🔧 GitHub MCP Server Token Setup"
 echo "================================="
 echo ""
 
+# Define paths
+ENV_FILE="$PROJECT_ROOT/.env"
+ENV_TEMPLATE="$PROJECT_ROOT/.env.template"
+
 # Check if .env file exists
-if [ -f ".env" ]; then
+if [ -f "$ENV_FILE" ]; then
     echo "✅ .env file found"
-    source .env
+    source "$ENV_FILE"
 else
     echo "❌ .env file not found"
     echo ""
     echo "Please create a .env file from the template:"
-    echo "  cp .env.template .env"
-    echo "  nano .env"
+    echo "  cp \"$ENV_TEMPLATE\" \"$ENV_FILE\""
+    echo "  nano \"$ENV_FILE\""
     echo ""
     echo "Then add your GitHub Personal Access Token to the .env file."
     echo ""
     echo "To create a GitHub token:"
-    echo "1. Go to https://github.com/settings/tokens"
-    echo "2. Click 'Generate new token (classic)'"
-    echo "3. Select scopes: repo, read:user, read:org"
-    echo "4. Copy the token and paste it in .env file"
-    echo ""
+echo "1. Go to https://github.com/settings/tokens"
+echo "2. Click 'Generate new token (classic)'"
+echo "3. Select scopes: repo, read:user, read:org"
+echo "4. Copy the token and paste it in .env file"
+echo ""
     exit 1
 fi
 
 # Check if token is set
 if [ -z "$GITHUB_PERSONAL_ACCESS_TOKEN" ] || [ "$GITHUB_PERSONAL_ACCESS_TOKEN" = "your_github_token_here" ]; then
     echo "❌ GitHub token not set in .env file"
-    echo "Please edit .env and set GITHUB_PERSONAL_ACCESS_TOKEN"
+    echo "Please edit \"$ENV_FILE\" and set GITHUB_PERSONAL_ACCESS_TOKEN"
     exit 1
 fi
 

@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Determine the project root dynamically
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
 # =============================================================================
 # GitHub MCP Connector Script
 # =============================================================================
@@ -15,7 +19,7 @@
 # 
 # Troubleshooting:
 # - If container ID changes, update CONTAINER_ID below
-# - Test with: echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | bash scripts/github-mcp-connector.sh
+# - Test with: echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | bash "$PROJECT_ROOT/scripts/github-mcp-connector.sh"
 # =============================================================================
 
 # Container ID for the running GitHub MCP server

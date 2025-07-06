@@ -1,11 +1,15 @@
 #!/bin/bash
 
+# Determine the project root dynamically
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
 # Load environment variables
 # Try .env file first, then fall back to config.sh
-if [ -f ~/Documents/claude-mcp-servers/.env ]; then
-    source ~/Documents/claude-mcp-servers/.env
-elif [ -f ~/Documents/claude-mcp-servers/config/config.sh ]; then
-    source ~/Documents/claude-mcp-servers/config/config.sh
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    source "$PROJECT_ROOT/.env"
+elif [ -f "$PROJECT_ROOT/config/config.sh" ]; then
+    source "$PROJECT_ROOT/config/config.sh"
 else
     echo "❌ No environment configuration found!"
     echo "Please create .env file or run: bash scripts/setup-github-token.sh"
@@ -13,7 +17,7 @@ else
 fi
 
 # Create a lockfile to prevent multiple instances
-LOCK_FILE=~/Documents/claude-mcp-servers/vscode-integration/.server-lock
+LOCK_FILE="$PROJECT_ROOT/vscode-integration/.server-lock"
 if [ -f "$LOCK_FILE" ]; then
   PID=$(cat "$LOCK_FILE")
   if ps -p $PID > /dev/null; then
@@ -25,7 +29,7 @@ if [ -f "$LOCK_FILE" ]; then
 fi
 
 # Create the lock file with current PID
-echo $$ > "$LOCK_FILE"
+echo $ > "$LOCK_FILE"
 
 # Function to clean up on exit
 cleanup() {
@@ -38,8 +42,8 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # Log start time
-mkdir -p ~/Documents/claude-mcp-servers/logs
-echo "Starting MCP servers at $(date)" >> ~/Documents/claude-mcp-servers/logs/startup.log
+mkdir -p "$PROJECT_ROOT/logs"
+echo "Starting MCP servers at $(date)" >> "$PROJECT_ROOT/logs/startup.log"
 
 # Register MCP servers with Claude
 echo "Registering MCP servers with Claude..."
@@ -48,7 +52,7 @@ echo "Registering MCP servers with Claude..."
 # First remove any existing configuration
 claude mcp remove "github-mcp-server" 2>/dev/null || true
 # Add with the connector script that uses the existing container
-claude mcp add "github-mcp-server" "bash" "scripts/github-mcp-connector.sh"
+claude mcp add "github-mcp-server" "bash" "$PROJECT_ROOT/scripts/github-mcp-connector.sh"
 
 # Context7 MCP Server
 claude mcp add "context7-mcp-server" "npx" "@upstash/context7-mcp@latest"
@@ -63,7 +67,7 @@ claude mcp add "puppeteer-mcp-server" "npx" "puppeteer-mcp-server"
 # First remove any existing configuration
 claude mcp remove "memory-bank-mcp-server" 2>/dev/null || true
 # Add with the connector script that manages container lifecycle
-claude mcp add "memory-bank-mcp-server" "bash" "scripts/memory-bank-connector.sh"
+claude mcp add "memory-bank-mcp-server" "bash" "$PROJECT_ROOT/scripts/memory-bank-connector.sh"
 
 # Knowledge Graph MCP Server - Disabled (package not available)
 # claude mcp add "knowledgegraph-mcp-server" "npx" "knowledgegraph-mcp-server"

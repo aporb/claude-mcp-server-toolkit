@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Determine the project root dynamically
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
 # =============================================================================
 # Memory Bank MCP Connector Script
 # =============================================================================
@@ -18,13 +22,13 @@
 # - Each connection gets a fresh, clean environment
 # - Automatic cleanup when connection closes
 # 
-# Build the image with: bash scripts/build-memory-bank.sh
+# Build the image with: bash "$PROJECT_ROOT/scripts/build-memory-bank.sh"
 # =============================================================================
 
 # Verify the Docker image exists
 if ! docker image inspect memory-bank-mcp:local >/dev/null 2>&1; then
     echo "Error: memory-bank-mcp:local image not found" >&2
-    echo "Please run: bash scripts/build-memory-bank.sh" >&2
+    echo "Please run: bash \"$PROJECT_ROOT/scripts/build-memory-bank.sh\"" >&2
     echo "Available images:" >&2
     docker images --filter reference=memory-bank-mcp >&2
     exit 1
