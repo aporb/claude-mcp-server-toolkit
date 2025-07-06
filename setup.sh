@@ -423,9 +423,30 @@ setup_configuration() {
     return 0
 }
 
+# Run platform detection and selection
+run_platform_selection() {
+    echo ""
+    print_color "$BOLD" "Platform Detection and Selection"
+    echo ""
+    
+    # Run platform detection
+    if [[ "$DRY_RUN" == "false" ]]; then
+        bash "$PROJECT_ROOT/scripts/platform-detector.sh" select
+    else
+        log INFO "[DRY RUN] Would run platform detection and selection"
+    fi
+}
+
 # Configure credentials interactively
 configure_credentials() {
-    # GitHub Token
+    echo ""
+    print_color "$CYAN" "╔═══════════════════════════════════════════════════════╗"
+    print_color "$CYAN" "║              Credential Configuration                 ║"
+    print_color "$CYAN" "╚═══════════════════════════════════════════════════════╝"
+    echo ""
+    
+    # GitHub Token (Required)
+    print_color "$BLUE" "${INFO_SIGN} GitHub Configuration (Required)"
     echo -n "  GitHub Personal Access Token: "
     read -s github_token
     echo
@@ -449,15 +470,184 @@ configure_credentials() {
     fi
     
     echo ""
-    read -p "  Would you like to configure additional services? (y/N): " -n 1 -r
+    
+    # Atlassian Configuration (Optional)
+    read -p "  Configure Atlassian (Confluence/Jira)? (y/N): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo ""
-        echo "  Additional configuration available in .env file:"
-        echo "  - Atlassian (Confluence/Jira)"
-        echo "  - Jan.ai"
+        print_color "$BLUE" "${INFO_SIGN} Atlassian Configuration"
+        
+        echo -n "  Confluence URL (e.g., https://company.atlassian.net/wiki): "
+        read confluence_url
+        echo -n "  Confluence Username (email): "
+        read confluence_username
+        echo -n "  Confluence API Token: "
+        read -s confluence_token
+        echo
+        
+        echo -n "  Jira URL (e.g., https://company.atlassian.net): "
+        read jira_url
+        echo -n "  Jira Username (email): "
+        read jira_username
+        echo -n "  Jira API Token: "
+        read -s jira_token
+        echo
+        
+        if [[ "$DRY_RUN" == "false" ]]; then
+            # Update .env file
+            sed -i.bak \
+                -e "s|CONFLUENCE_URL=.*|CONFLUENCE_URL=$confluence_url|" \
+                -e "s/CONFLUENCE_USERNAME=.*/CONFLUENCE_USERNAME=$confluence_username/" \
+                -e "s/CONFLUENCE_API_TOKEN=.*/CONFLUENCE_API_TOKEN=$confluence_token/" \
+                -e "s|JIRA_URL=.*|JIRA_URL=$jira_url|" \
+                -e "s/JIRA_USERNAME=.*/JIRA_USERNAME=$jira_username/" \
+                -e "s/JIRA_API_TOKEN=.*/JIRA_API_TOKEN=$jira_token/" \
+                "$PROJECT_ROOT/.env"
+            rm -f "$PROJECT_ROOT/.env.bak"
+            log SUCCESS "Atlassian credentials configured"
+        fi
         echo ""
-        echo "  Please edit .env file manually for these services."
+    fi
+    
+    # Gemini API Configuration (Optional)
+    read -p "  Configure Google Gemini API? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo ""
+        print_color "$BLUE" "${INFO_SIGN} Google Gemini API Configuration"
+        echo -n "  Gemini API Key: "
+        read -s gemini_key
+        echo
+        
+        if [[ -n "$gemini_key" ]]; then
+            if [[ "$DRY_RUN" == "false" ]]; then
+                sed -i.bak "s/GEMINI_API_KEY=.*/GEMINI_API_KEY=$gemini_key/" "$PROJECT_ROOT/.env"
+                rm -f "$PROJECT_ROOT/.env.bak"
+                log SUCCESS "Gemini API key configured"
+            fi
+        fi
+        echo ""
+    fi
+    
+    # Jan.ai Configuration (Optional)
+    read -p "  Configure Jan.ai? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo ""
+        print_color "$BLUE" "${INFO_SIGN} Jan.ai Configuration"
+        echo -n "  Jan.ai API Key: "
+        read -s jan_key
+        echo
+        echo -n "  Jan.ai API URL [http://localhost:1337]: "
+        read jan_url
+        jan_url=${jan_url:-http://localhost:1337}
+        
+        if [[ -n "$jan_key" ]]; then
+            if [[ "$DRY_RUN" == "false" ]]; then
+                sed -i.bak \
+                    -e "s/JAN_API_KEY=.*/JAN_API_KEY=$jan_key/" \
+                    -e "s|JAN_API_URL=.*|JAN_API_URL=$jan_url|" \
+                    "$PROJECT_ROOT/.env"
+                rm -f "$PROJECT_ROOT/.env.bak"
+                log SUCCESS "Jan.ai credentials configured"
+            fi
+        fi
+        echo ""
+    fi
+    
+    # OpenAI API Configuration (Optional)
+    read -p "  Configure OpenAI API? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo ""
+        print_color "$BLUE" "${INFO_SIGN} OpenAI API Configuration"
+        echo -n "  OpenAI API Key: "
+        read -s openai_key
+        echo
+        
+        if [[ -n "$openai_key" ]]; then
+            if [[ "$DRY_RUN" == "false" ]]; then
+                sed -i.bak "s/OPENAI_API_KEY=.*/OPENAI_API_KEY=$openai_key/" "$PROJECT_ROOT/.env"
+                rm -f "$PROJECT_ROOT/.env.bak"
+                log SUCCESS "OpenAI API key configured"
+            fi
+        fi
+        echo ""
+    fi
+    
+    log SUCCESS "Credential configuration completed"
+}
+
+# Configure selected platforms
+configure_platforms() {
+    echo ""
+    print_color "$BOLD" "Platform Configuration"
+    echo ""
+    
+    # Check if platform selection file exists
+    local platform_file="$PROJECT_ROOT/config/selected-platforms.conf"
+    if [[ ! -f "$platform_file" ]]; then
+        log WARN "No platform selection found. Running platform detection..."
+        run_platform_selection
+    fi
+    
+    # Load platform selection
+    if [[ -f "$platform_file" ]]; then
+        source "$platform_file"
+        
+        # Configure each selected platform
+        if [[ "${CONFIGURE_CLAUDE_DESKTOP:-false}" == "true" ]]; then
+            echo ""
+            log INFO "Configuring Claude Desktop..."
+            if [[ "$DRY_RUN" == "false" ]]; then
+                bash "$PROJECT_ROOT/scripts/configure-claude-desktop.sh"
+            else
+                log INFO "[DRY RUN] Would configure Claude Desktop"
+            fi
+        fi
+        
+        if [[ "${CONFIGURE_CLAUDE_CODE:-false}" == "true" ]]; then
+            echo ""
+            log INFO "Configuring Claude Code..."
+            if [[ "$DRY_RUN" == "false" ]]; then
+                bash "$PROJECT_ROOT/scripts/configure-claude-code.sh"
+            else
+                log INFO "[DRY RUN] Would configure Claude Code"
+            fi
+        fi
+        
+        if [[ "${CONFIGURE_VSCODE_CLINE:-false}" == "true" ]]; then
+            echo ""
+            log INFO "Configuring VS Code/Cline..."
+            if [[ "$DRY_RUN" == "false" ]]; then
+                bash "$PROJECT_ROOT/scripts/configure-vscode-cline.sh"
+            else
+                log INFO "[DRY RUN] Would configure VS Code/Cline"
+            fi
+        fi
+        
+        if [[ "${CONFIGURE_GEMINI:-false}" == "true" ]]; then
+            echo ""
+            log INFO "Configuring Gemini CLI..."
+            if [[ "$DRY_RUN" == "false" ]]; then
+                log WARN "Gemini CLI configuration not yet implemented"
+            else
+                log INFO "[DRY RUN] Would configure Gemini CLI"
+            fi
+        fi
+        
+        if [[ "${CONFIGURE_JAN:-false}" == "true" ]]; then
+            echo ""
+            log INFO "Configuring Jan.ai..."
+            if [[ "$DRY_RUN" == "false" ]]; then
+                log WARN "Jan.ai configuration not yet implemented"
+            else
+                log INFO "[DRY RUN] Would configure Jan.ai"
+            fi
+        fi
+    else
+        log WARN "No platforms selected for configuration"
     fi
 }
 
@@ -933,7 +1123,15 @@ main() {
         exit_code=1
     elif ! setup_scripts_permissions; then
         exit_code=1
-    elif ! run_health_check; then
+    fi
+    
+    # Configure platforms after Docker setup
+    if [ $exit_code -eq 0 ]; then
+        configure_platforms
+    fi
+    
+    # Run health check
+    if [ $exit_code -eq 0 ] && ! run_health_check; then
         exit_code=1
     fi
     
