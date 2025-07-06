@@ -309,23 +309,18 @@ This document provides solutions for common issues encountered when setting up a
 - No response from connector script
 
 **Solutions:**
-1. Check container ID in `scripts/github-mcp-connector.sh`
-2. Update container ID manually:
+1.  **Ensure the container is running**:
    ```bash
-   # Get current container ID
-   CONTAINER_ID=$(docker ps --filter ancestor=ghcr.io/github/github-mcp-server --format "{{.ID}}")
-   
-   # Update script
-   sed -i '' "s/CONTAINER_ID=\".*\"/CONTAINER_ID=\"$CONTAINER_ID\"/" scripts/github-mcp-connector.sh
+   docker ps | grep github-mcp-server
    ```
-3. Restart container:
-   ```bash
-   docker restart $CONTAINER_ID
-   ```
-4. Test connector directly:
+   If not, start it using the command in the section above.
+
+2.  **Test the connector directly**:
+   The connector script now finds the container ID automatically. You can test it with:
    ```bash
    echo '{"jsonrpc":"2.0","id":1,"method":"initialize"}' | bash scripts/github-mcp-connector.sh
    ```
+   If it fails, it might be an issue with the Docker environment itself.
 
 ### GitHub API Authentication Issues
 

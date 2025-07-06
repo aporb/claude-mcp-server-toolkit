@@ -36,37 +36,37 @@ MCP servers enhance Claude's capabilities by providing access to external tools 
 
 ## Quick Start
 
-1. **Set environment variables**:
-   Copy `.env.template` to `.env` and edit with your credentials:
+1.  **Set environment variables**:
+   Copy `.env.template` to `.env` and edit with your credentials. The `GITHUB_PERSONAL_ACCESS_TOKEN` is required.
    ```bash
    cp .env.template .env
    nano .env
    ```
-   The `config/config.sh` file will be generated automatically by `setup.sh`.
 
-2. **Make scripts executable**:
+2.  **Run the setup script**:
+   This will check requirements, set permissions, and prepare the environment.
    ```bash
-   chmod +x scripts/*.sh vscode-integration/start-servers.sh
+   bash setup.sh
    ```
 
-3. **Set secure permissions for the config file**:
-   ```bash
-   chmod 600 config/config.sh
-   ```
-
-4. **Build the Memory Bank Docker image**:
+3.  **Build the Memory Bank Docker image**:
    ```bash
    bash scripts/build-memory-bank.sh
    ```
 
-5. **Start MCP servers**:
+4.  **Start MCP servers**:
+   This command will register all the MCP servers with Claude. It's designed to be run in the background, for example, as a VS Code task.
    ```bash
    bash vscode-integration/start-servers.sh
    ```
 
-Alternatively, you can run the setup script which will handle steps 2-3:
+## Testing
+
+This project includes a comprehensive test suite to ensure the reliability and correctness of the scripts. The suite includes unit, integration, and end-to-end tests.
+
+To run all tests, execute the following command from the project root:
 ```bash
-bash setup.sh
+bash tests/run_tests.sh
 ```
 
 ## VS Code Integration
