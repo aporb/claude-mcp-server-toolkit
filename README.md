@@ -18,6 +18,7 @@ MCP servers enhance Claude's capabilities by providing access to external tools 
 ```
 [PROJECT_ROOT]/
 ├── README.md                # Main documentation
+├── product-docs/            # Product & project management documents
 ├── config/                  # Configuration files
 │   └── config.sh            # Environment variables
 ├── data/                    # Persistent data storage
