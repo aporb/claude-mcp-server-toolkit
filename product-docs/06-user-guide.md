@@ -148,14 +148,80 @@ bash setup.sh --skip-health-check
 
 ### 2.3. Platform-Specific Configuration Scripts
 
-For manual or individual platform configuration:
+#### 2.3.1 Claude Desktop Setup
 
+Claude Desktop uses the Model Context Protocol (MCP) to enable AI models to interact with external tools and data sources in a standardized way. This allows Claude to access files, interact with browsers, and connect to various services securely.
+
+**What is MCP?**
+- A standardized protocol for AI-tool interaction
+- Enables secure access to external tools and data
+- Provides consistent interface across different tools
+- Supports extensible capabilities through MCP servers
+
+**Core Benefits:**
+- Standardization: One protocol for all tool interactions
+- Extensibility: Easy to add new capabilities
+- Security: Granular permission controls
+- Flexibility: Mix and match tools as needed
+
+**Security Considerations:**
+- All MCP servers are disabled by default
+- Each tool requires explicit permission
+- File system access is restricted to allowed directories
+- Sensitive paths (.ssh, .aws, etc.) are blocked
+- Tool permissions can be granted selectively
+
+Follow these steps to set up MCP functionality:
+
+1. **Install Claude Desktop**
+   - Download from [claude.ai/download](https://claude.ai/download)
+   - Install the application
+   - Ensure you have the latest version via Claude menu > Check for Updates
+
+2. **Configure MCP Server**
+   ```bash
+   # Run the configuration script
+   bash scripts/configure-claude-desktop.sh
+   ```
+
+   This will:
+   - Create configuration at `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
+   - Or at `%APPDATA%\Claude\claude_desktop_config.json` (Windows)
+   - Set up filesystem access for Desktop, Downloads, and Documents
+   - Configure Node.js-based MCP server
+
+3. **Verify Node.js Installation**
+   ```bash
+   # Check Node.js version (must be 14.0.0 or higher)
+   node --version
+
+   # Install Node.js if needed
+   # Visit https://nodejs.org
+   ```
+
+4. **Enable MCP in Claude Desktop**
+   - Open Claude Desktop
+   - Click Claude menu > Settings
+   - Select "MCP Servers" in the left sidebar
+   - Toggle "Allow All MCP Tool Permission" switch ON
+   - Enable individual MCP servers as needed
+   - For Browser MCP:
+     1. Install Chrome extension from Web Store
+     2. Enable extension for private windows
+     3. Connect to Browser MCP server
+
+5. **Verify Setup**
+   - Restart Claude Desktop
+   - Look for the slider icon in the bottom left corner
+   - Click the slider to see available tools
+   - Test file system access with a simple command like "List files on my desktop"
+
+For other platforms:
 ```bash
 # Detect installed AI platforms
 bash scripts/platform-detector.sh
 
-# Configure specific platforms individually
-bash scripts/configure-claude-desktop.sh
+# Configure other platforms individually
 bash scripts/configure-claude-code.sh
 bash scripts/configure-vscode-cline.sh
 ```
@@ -323,7 +389,9 @@ npm update -g puppeteer-mcp-server
 
 | Issue | Symptoms | Quick Fix |
 |-------|----------|-----------|
-| **No MCP slider in Claude Desktop** | Missing UI element | Restart Claude Desktop, check config syntax |
+| **No MCP slider in Claude Desktop** | Missing UI element | 1. Check config file exists<br>2. Verify Node.js installation<br>3. Restart Claude Desktop |
+| **Claude Desktop filesystem access denied** | Cannot read/write files | 1. Check paths in config<br>2. Verify directory permissions<br>3. Run configure-claude-desktop.sh |
+| **Node.js package errors in Claude Desktop** | NPM errors in logs | 1. Install Node.js 14.0.0+<br>2. Run `npm install -g @modelcontextprotocol/server-filesystem`<br>3. Clear NPM cache |
 | **GitHub MCP server failed** | ✘ failed status | Check Docker container, update container ID |
 | **Permission denied** | Script execution errors | `chmod +x scripts/*.sh` |
 | **Node.js not found** | NPM command errors | Install Node.js from nodejs.org |

@@ -3,11 +3,199 @@
 
 This document provides solutions for common issues encountered when setting up and using the Claude MCP Server Toolkit with the Docker-first strategy.
 
+## Claude Desktop MCP Issues
+
+### MCP Server Not Showing in Claude Desktop
+
+**Prerequisites:**
+- NodeJS installed (download from [nodejs.org](https://nodejs.org))
+- Python installed (download from [python.org](https://python.org))
+- MCP enabled in Settings > MCP Servers
+- "Allow All MCP Tool Permission" switch turned ON
+
+### MCP Server Connection Issues
+
+**Symptoms:**
+- MCP slider icon missing in Claude Desktop
+- Tools not appearing after clicking the slider icon
+- "No MCP servers available" message
+
+**Solutions:**
+1. Check Claude Desktop configuration:
+   ```bash
+   # macOS
+   cat ~/Library/Application\ Support/Claude/claude_desktop_config.json
+   # Windows
+   type "%APPDATA%\Claude\claude_desktop_config.json"
+   ```
+
+2. Verify Node.js installation:
+   ```bash
+   node --version  # Should be 14.0.0 or higher
+   npm --version   # Should be installed
+   ```
+
+3. Check filesystem server installation:
+   ```bash
+   npx -y @modelcontextprotocol/server-filesystem --version
+   ```
+
+4. Run configuration script:
+   ```bash
+   ./scripts/configure-claude-desktop.sh
+   ```
+
+### MCP Security Considerations
+
+**Important Security Notes:**
+- Each MCP server must be enabled individually for security
+- Tool permissions should be granted selectively
+- File system access is restricted to allowed directories only
+- Sensitive directories (.ssh, .aws, etc.) are blocked by default
+- All MCP servers are disabled by default for security
+
+### Browser MCP Setup
+
+**Requirements:**
+1. Chrome-based browser (Chrome, Brave, Edge, etc.)
+2. Browser MCP Extension installed
+3. Extension enabled for private windows
+4. Model with tool calling capabilities enabled
+
+**Setup Steps:**
+1. Install Browser MCP:
+   ```bash
+   npm install -g @browsermcp/mcp
+   ```
+2. Configure in Claude Desktop:
+   ```bash
+   ./scripts/configure-claude-desktop.sh
+   ```
+3. Install browser extension from Chrome Web Store
+4. Enable extension for private windows
+5. Connect extension to Browser MCP server
+
+### Configuration File Issues
+
+**Symptoms:**
+- "Invalid configuration" error in Claude Desktop
+- Configuration changes not taking effect
+- Permission denied errors
+
+**Solutions:**
+1. Fix configuration file permissions:
+   ```bash
+   # macOS
+   chmod 600 ~/Library/Application\ Support/Claude/claude_desktop_config.json
+   # Windows
+   icacls "%APPDATA%\Claude\claude_desktop_config.json" /inheritance:r /grant:r "%USERNAME%:F"
+   ```
+
+2. Validate configuration JSON:
+   ```bash
+   # macOS
+   jq '.' ~/Library/Application\ Support/Claude/claude_desktop_config.json
+   # Windows
+   type "%APPDATA%\Claude\claude_desktop_config.json" | jq '.'
+   ```
+
+3. Reset configuration:
+   ```bash
+   ./scripts/configure-claude-desktop.sh --reset
+   ```
+
+### Filesystem Access Issues
+
+**Symptoms:**
+- "Permission denied" when accessing files
+- Cannot read/write files in specified directories
+- Missing directories in file operations
+
+**Solutions:**
+1. Verify directory permissions:
+   ```bash
+   # Check Desktop permissions
+   ls -la ~/Desktop
+   # Check Downloads permissions
+   ls -la ~/Downloads
+   ```
+
+2. Update allowed directories:
+   ```bash
+   ./scripts/configure-claude-desktop.sh configure
+   ```
+
+3. Check Claude Desktop logs:
+   ```bash
+   # macOS
+   tail -f ~/Library/Logs/Claude/mcp*.log
+   # Windows
+   type "%APPDATA%\Claude\logs\mcp*.log"
+   ```
+
+### Node.js Package Issues
+
+**Symptoms:**
+- "Cannot find module" errors
+- NPM package installation failures
+- Version compatibility issues
+
+**Solutions:**
+1. Reinstall filesystem server globally:
+   ```bash
+   npm uninstall -g @modelcontextprotocol/server-filesystem
+   npm install -g @modelcontextprotocol/server-filesystem
+   ```
+
+2. Clear NPM cache:
+   ```bash
+   npm cache clean --force
+   ```
+
+3. Check for global package conflicts:
+   ```bash
+   npm ls -g @modelcontextprotocol/server-filesystem
+   ```
+
+### Claude Desktop Update Issues
+
+**Symptoms:**
+- MCP features stop working after Claude Desktop update
+- Configuration reset after update
+- Version mismatch errors
+
+**Solutions:**
+1. Check Claude Desktop version:
+   ```bash
+   # Click Claude menu > About Claude
+   # Or check app version in Activity Monitor/Task Manager
+   ```
+
+2. Reconfigure after update:
+   ```bash
+   ./scripts/configure-claude-desktop.sh
+   ```
+
+3. Clear Claude Desktop cache:
+   ```bash
+   # macOS
+   rm -rf ~/Library/Application\ Support/Claude/Cache/*
+   # Windows
+   del /s /q "%APPDATA%\Claude\Cache\*"
+   ```
+
+4. Verify MCP server versions match Claude Desktop requirements:
+   ```bash
+   npm info @modelcontextprotocol/server-filesystem version
+   ```
+
+
 ## Table of Contents
 
-1. [Docker-Related Issues](#docker-related-issues)
-2. [GitHub MCP Server Issues](#github-mcp-server-issues)
-3. [Memory Bank MCP Issues](#memory-bank-mcp-issues)
+1. [Claude Desktop MCP Issues](#claude-desktop-mcp-issues)
+2. [Docker-Related Issues](#docker-related-issues)
+3. [GitHub MCP Server Issues](#github-mcp-server-issues)
+4. [Memory Bank MCP Issues](#memory-bank-mcp-issues)
 4. [Custom Build Images Issues](#custom-build-images-issues)
 5. [Environment and Configuration Issues](#environment-and-configuration-issues)
 6. [MCP Server Registration Issues](#mcp-server-registration-issues)
