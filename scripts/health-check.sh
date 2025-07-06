@@ -33,6 +33,22 @@ ISSUES_COUNT=0
 WARNINGS_COUNT=0
 CRITICAL_COUNT=0
 
+# Required Node.js version
+MIN_NODE_VERSION="14.0.0"
+
+# Required Python version
+MIN_PYTHON_VERSION="3.8.0"
+
+# Required MCP servers
+declare -a REQUIRED_MCP_SERVERS=(
+    "filesystem"
+    "browser"
+    "memory"
+    "git"
+    "context7"
+    "sequential-thinking"
+)
+
 # Logging function
 log() {
     local level="$1"
@@ -123,269 +139,193 @@ load_environment() {
     fi
 }
 
+# Check Node.js version
+check_node_version() {
+    if ! command -v node &> /dev/null; then
+        log "ERROR" "Node.js not found. Please install from https://nodejs.org"
+        return 1
+    fi
+
+    local current_version=$(node --version | cut -d 'v' -f 2)
+    if ! verify_version "$current_version" "$MIN_NODE_VERSION"; then
+        log "ERROR" "Node.js version $current_version is below minimum required version $MIN_NODE_VERSION"
+        return 1
+    fi
+
+    log "SUCCESS" "Node.js version $current_version meets requirements"
+    return 0
+}
+
+# Check Python version
+check_python_version() {
+    if ! command -v python3 &> /dev/null; then
+        log "ERROR" "Python 3 not found. Please install from https://python.org"
+        return 1
+    fi
+
+    local current_version=$(python3 --version | cut -d ' ' -f 2)
+    if ! verify_version "$current_version" "$MIN_PYTHON_VERSION"; then
+        log "ERROR" "Python version $current_version is below minimum required version $MIN_PYTHON_VERSION"
+        return 1
+    fi
+
+    log "SUCCESS" "Python version $current_version meets requirements"
+    return 0
+}
+
+# Version comparison
+verify_version() {
+    local current="$1"
+    local required="$2"
+    
+    IFS='.' read -ra current_parts <<< "$current"
+    IFS='.' read -ra required_parts <<< "$required"
+    
+    for i in {0..2}; do
+        if (( ${current_parts[$i]:-0} < ${required_parts[$i]:-0} )); then
+            return 1
+        elif (( ${current_parts[$i]:-0} > ${required_parts[$i]:-0} )); then
+            return 0
+        fi
+    done
+    return 0
+}
+
 # Initialize
 load_environment
 
 if [[ "$JSON_OUTPUT" != true ]]; then
-    echo "==== MCP Server Health Check (Multi-Platform Strategy) ===="
+    echo "==== MCP Server Health Check ===="
     echo "Started at: $(date)"
     echo "Project root: $PROJECT_ROOT"
     echo ""
 fi
 
-# Function to check Docker health
-check_docker_health() {
-    log "INFO" "Checking Docker Engine health..."
+# Section 1: Prerequisites Check
+echo "1️⃣ Prerequisites Check"
+echo "--------------------"
+
+# Check Node.js
+check_node_version || ((ISSUES_COUNT++))
+
+# Check Python
+check_python_version || ((ISSUES_COUNT++))
+
+# Section 2: MCP Configuration
+echo ""
+echo "2️⃣ MCP Configuration"
+echo "------------------"
+
+# Check Claude Desktop config
+CONFIG_PATH=""
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    CONFIG_PATH="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
+else
+    CONFIG_PATH="$APPDATA/Claude/claude_desktop_config.json"
+fi
+
+if [[ -f "$CONFIG_PATH" ]]; then
+    echo "✅ Claude Desktop config found: $CONFIG_PATH"
     
-    # Check if Docker command exists
-    if ! command -v docker &> /dev/null; then
-        log "ERROR" "Docker command not found. Please install Docker."
-        return 1
-    fi
-    
-    # Check if Docker is running
-    if ! docker info > /dev/null 2>&1; then
-        log "ERROR" "Docker is not running! Please start Docker before proceeding."
-        if [[ "$AUTO_FIX" == true ]]; then
-            log "INFO" "Attempting to start Docker..."
-            if command -v open &> /dev/null; then
-                open -a Docker 2>/dev/null || log "WARN" "Could not auto-start Docker Desktop"
-            fi
-        fi
-        return 1
-    fi
-    
-    local docker_version
-    if docker_version=$(docker --version 2>/dev/null); then
-        log "SUCCESS" "Docker is running: $docker_version"
+    # Check MCP settings
+    if jq -e '.mcpEnabled' "$CONFIG_PATH" &>/dev/null; then
+        echo "✅ MCP is enabled in configuration"
     else
-        log "WARN" "Docker is running but version check failed"
+        echo "⚠️ MCP is not enabled in configuration"
+        ((WARNINGS_COUNT++))
     fi
     
-    # Check Docker system health
-    log "DEBUG" "Checking Docker system health..."
-    if docker info | grep -E "Containers:|Running:|Paused:|Stopped:|Images:" > /dev/null 2>&1; then
-        if [[ "$VERBOSE" == true ]]; then
-            echo "Docker System Health:"
-            docker info | grep -E "Containers:|Running:|Paused:|Stopped:|Images:"
-        fi
-        log "SUCCESS" "Docker system health check passed"
+    # Check security settings
+    if jq -e '.security.requireToolApproval' "$CONFIG_PATH" &>/dev/null; then
+        echo "✅ Tool approval requirement is configured"
     else
-        log "WARN" "Could not retrieve Docker system information"
+        echo "⚠️ Tool approval requirement is not configured"
+        ((WARNINGS_COUNT++))
     fi
     
-    return 0
-}
+    # Check file system access
+    if jq -e '.security.fileSystemAccess.allowedPaths' "$CONFIG_PATH" &>/dev/null; then
+        echo "✅ File system access paths are configured"
+    else
+        echo "⚠️ File system access paths are not configured"
+        ((WARNINGS_COUNT++))
+    fi
+else
+    echo "❌ Claude Desktop config not found"
+    ((CRITICAL_COUNT++))
+fi
 
-# Section 2: Required Docker Images
+# Section 3: MCP Server Status
 echo ""
-echo "2️⃣ Docker Images Verification"
-echo "----------------------------"
+echo "3️⃣ MCP Server Status"
+echo "-----------------"
 
-# Define required images
-declare -a required_images=(
-  "ghcr.io/github/github-mcp-server"
-  "mcp/atlassian"
-  "mcp/server-filesystem"
-  "mcp/server/git"
-  "mcp/server-memory"
-  "mcp/browser-tools-mcp"
-  "zcaceres/fetch-mcp"
-)
-
-# Check custom build images
-declare -a custom_images=(
-  "context7-mcp"
-  "mcp/sequentialthinking"
-  "memory-bank-mcp:local"
-)
-
-# Check required images
-for image in "${required_images[@]}"; do
-  if docker image inspect "$image" > /dev/null 2>&1; then
-    echo "✅ $image: Available"
-  else
-    echo "❌ $image: Missing (will be pulled during startup)"
-  fi
+# Check each required MCP server
+for server in "${REQUIRED_MCP_SERVERS[@]}"; do
+    if jq -e ".mcpServers.$server" "$CONFIG_PATH" &>/dev/null; then
+        if jq -e ".mcpServers.$server.enabled" "$CONFIG_PATH" &>/dev/null; then
+            echo "✅ $server: Configured and enabled"
+        else
+            echo "⚠️ $server: Configured but disabled"
+            ((WARNINGS_COUNT++))
+        fi
+    else
+        echo "❌ $server: Not configured"
+        ((CRITICAL_COUNT++))
+    fi
 done
 
-# Check custom build images
+# Section 4: Browser Extension Check
 echo ""
-echo "Custom Build Images:"
-for image in "${custom_images[@]}"; do
-  if docker image inspect "$image" > /dev/null 2>&1; then
-    echo "✅ $image: Available"
-  else
-    echo "❌ $image: Missing (requires build)"
-  fi
-done
+echo "4️⃣ Browser Extension Check"
+echo "----------------------"
 
-# Section 3: Running Docker Containers
+# Check Chrome extension
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    CHROME_PROFILE="$HOME/Library/Application Support/Google/Chrome/Default"
+else
+    CHROME_PROFILE="$APPDATA/Google/Chrome/Default"
+fi
+
+if [[ -d "$CHROME_PROFILE" ]]; then
+    if [[ -f "$CHROME_PROFILE/Extensions/bjfgambnhccakkhmkepdoekmckoijdlc/manifest.json" ]]; then
+        echo "✅ Browser MCP extension is installed"
+    else
+        echo "⚠️ Browser MCP extension not found"
+        echo "   Install from: https://chromewebstore.google.com/detail/browser-mcp-automate-your/bjfgambnhccakkhmkepdoekmckoijdlc"
+        ((WARNINGS_COUNT++))
+    fi
+else
+    echo "⚠️ Chrome profile not found"
+    ((WARNINGS_COUNT++))
+fi
+
+# Section 5: Summary
 echo ""
-echo "3️⃣ Docker Container Status"
-echo "-------------------------"
+echo "5️⃣ Health Check Summary"
+echo "--------------------"
 
-# Check for running MCP containers
-echo "Running MCP Containers:"
-docker ps --format "table {{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Names}}" | grep -E 'mcp|github'
+echo "Critical Issues: $CRITICAL_COUNT"
+echo "Warnings: $WARNINGS_COUNT"
 
-# Check for GitHub MCP container specifically
-GITHUB_CONTAINER=$(docker ps --filter ancestor=ghcr.io/github/github-mcp-server --format "{{.ID}}" | head -n1)
-if [ -n "$GITHUB_CONTAINER" ]; then
-  echo "✅ GitHub MCP container running: $GITHUB_CONTAINER"
-  
-  # Verify it's properly referenced in the connector script
-  SCRIPT_CONTAINER_ID=$(grep "CONTAINER_ID=" "$PROJECT_ROOT/scripts/github-mcp-connector.sh" | cut -d'"' -f2)
-  if [ "$SCRIPT_CONTAINER_ID" != "$GITHUB_CONTAINER" ]; then
-    echo "⚠️ Container ID mismatch in github-mcp-connector.sh"
-    echo "   Script has: $SCRIPT_CONTAINER_ID"
-    echo "   Current container: $GITHUB_CONTAINER"
-    echo "   Run: bash scripts/setup.sh to update"
-  else
-    echo "✅ Connector script references correct container ID"
-  fi
+if [[ $CRITICAL_COUNT -eq 0 && $WARNINGS_COUNT -eq 0 ]]; then
+    echo "🎉 All systems healthy! No issues detected."
+elif [[ $CRITICAL_COUNT -eq 0 ]]; then
+    echo "⚠️ System operational with warnings."
+    echo "   Run 'bash setup.sh' to resolve issues."
 else
-  echo "⚠️ No GitHub MCP container running"
-fi
-
-# Section 4: Environment and Config
-echo ""
-echo "4️⃣ Environment and Configuration"
-echo "------------------------------"
-
-# Check if required directories exist
-for dir in "$PROJECT_ROOT/data/memory-bank" "$PROJECT_ROOT/data/knowledge-graph" "$PROJECT_ROOT/logs"; do
-  if [ -d "$dir" ]; then
-    permissions=$(stat -f "%A" "$dir")
-    echo "✅ Directory $dir exists (permissions: $permissions)"
-  else
-    echo "⚠️ Required directory $dir doesn't exist. Creating..."
-    mkdir -p "$dir"
-  fi
-done
-
-# Check environment variables
-if [ -z "$GITHUB_PERSONAL_ACCESS_TOKEN" ] || [ "$GITHUB_PERSONAL_ACCESS_TOKEN" == "your_github_token_here" ]; then
-  echo "⚠️ GITHUB_PERSONAL_ACCESS_TOKEN is not set or is set to default!"
-  echo "Please update $PROJECT_ROOT/.env with your token."
-else
-  echo "✅ GITHUB_PERSONAL_ACCESS_TOKEN is set"
-fi
-
-# Check config file permissions
-if [ -f "$PROJECT_ROOT/config/config.sh" ]; then
-  permissions=$(stat -f "%A" "$PROJECT_ROOT/config/config.sh")
-  if [ "$permissions" != "600" ]; then
-    echo "⚠️ config.sh has loose permissions: $permissions (should be 600)"
-  else
-    echo "✅ config.sh has correct permissions"
-  fi
-fi
-
-# Section 5: Network Connectivity
-echo ""
-echo "5️⃣ Network Connectivity"
-echo "---------------------"
-
-# Check internet connectivity
-echo "Testing internet connectivity..."
-if ! curl -s --connect-timeout 5 https://api.github.com > /dev/null; then
-  echo "⚠️ Internet connectivity issue detected. Check your network connection."
-  exit 1
-else
-  echo "✅ Internet connection working"
-fi
-
-# Docker Hub connectivity
-echo "Testing Docker Hub connectivity..."
-if ! curl -s --connect-timeout 5 https://registry.hub.docker.com/v2/ > /dev/null; then
-  echo "⚠️ Docker Hub connectivity issue detected. Pull operations may fail."
-else
-  echo "✅ Docker Hub connection working"
-fi
-
-# GitHub API connectivity
-echo "Testing GitHub API connectivity..."
-if [ -n "$GITHUB_PERSONAL_ACCESS_TOKEN" ] && [ "$GITHUB_PERSONAL_ACCESS_TOKEN" != "your_github_token_here" ]; then
-  if ! curl -s --connect-timeout 5 -H "Authorization: token $GITHUB_PERSONAL_ACCESS_TOKEN" https://api.github.com/user > /dev/null; then
-    echo "⚠️ GitHub API connectivity issue detected. Check your token and network."
-  else
-    echo "✅ GitHub API connection working"
-  fi
-fi
-
-# Section 6: MCP Configuration
-echo ""
-echo "6️⃣ MCP Server Configuration"
-echo "-------------------------"
-
-# Check if MCP servers are configured
-if claude mcp list 2>/dev/null | grep -q "No MCP servers configured"; then
-  echo "⚠️ No MCP servers are currently configured with Claude."
-  echo "Run the VS Code integration script to configure them:"
-  echo "bash $PROJECT_ROOT/vscode-integration/start-servers.sh"
-else
-  echo "✅ Claude has MCP servers configured:"
-  claude mcp list
-fi
-
-# Section 7: Summary and Recommendations
-echo ""
-echo "7️⃣ Health Check Summary"
-echo "---------------------"
-
-# Count of actual issues
-ISSUES=0
-
-# Docker not running would have exited earlier
-echo "✅ Docker Engine: Running"
-
-# Check for missing images
-MISSING_IMAGES=0
-for image in "${required_images[@]}" "${custom_images[@]}"; do
-  if ! docker image inspect "$image" > /dev/null 2>&1; then
-    MISSING_IMAGES=$((MISSING_IMAGES+1))
-  fi
-done
-
-if [ $MISSING_IMAGES -gt 0 ]; then
-  echo "⚠️ Docker Images: $MISSING_IMAGES missing"
-  ISSUES=$((ISSUES+1))
-else
-  echo "✅ Docker Images: All available"
-fi
-
-# Check for GitHub container
-if [ -z "$GITHUB_CONTAINER" ]; then
-  echo "⚠️ GitHub Container: Not running"
-  ISSUES=$((ISSUES+1))
-else
-  echo "✅ GitHub Container: Running"
-fi
-
-# Check for MCP configuration
-if claude mcp list 2>/dev/null | grep -q "No MCP servers configured"; then
-  echo "⚠️ MCP Configuration: Not configured"
-  ISSUES=$((ISSUES+1))
-else
-  echo "✅ MCP Configuration: Configured"
-fi
-
-# Check environment variables
-if [ -z "$GITHUB_PERSONAL_ACCESS_TOKEN" ] || [ "$GITHUB_PERSONAL_ACCESS_TOKEN" == "your_github_token_here" ]; then
-  echo "⚠️ Environment: Missing GitHub token"
-  ISSUES=$((ISSUES+1))
-else
-  echo "✅ Environment: Configured"
-fi
-
-echo ""
-if [ $ISSUES -eq 0 ]; then
-  echo "🎉 All systems healthy! No issues detected."
-else
-  echo "⚠️ $ISSUES issue(s) detected. See detailed output above."
-  echo "   Run 'bash setup.sh' to resolve common issues."
+    echo "❌ Critical issues detected!"
+    echo "   Run 'bash setup.sh' to resolve issues."
 fi
 
 echo ""
 echo "Health check completed at: $(date)"
+
+# Exit with appropriate status
+if [[ $CRITICAL_COUNT -gt 0 ]]; then
+    exit 1
+elif [[ $WARNINGS_COUNT -gt 0 ]]; then
+    exit 2
+else
+    exit 0
+fi
