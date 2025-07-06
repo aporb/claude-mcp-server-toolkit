@@ -1,22 +1,124 @@
 #!/bin/bash
 
+# =============================================================================
+# MCP Server Maintenance Script
+# =============================================================================
+# Purpose: Automated maintenance for MCP server infrastructure
+# Usage: bash scripts/maintenance.sh [--force] [--skip-backup] [--verbose]
+# Exit Codes:
+#   0 - Success
+#   1 - Docker not available/running
+#   2 - Environment configuration error
+#   3 - Update failures detected
+#   4 - Backup failures detected
+# =============================================================================
+
+# Strict error handling
+set -euo pipefail
+
+# Trap for cleanup on script termination
+cleanup() {
+    local exit_code=$?
+    if [[ $exit_code -ne 0 ]]; then
+        echo "❌ Maintenance script failed at line $1 with exit code $exit_code" >&2
+    fi
+}
+trap 'cleanup $LINENO' EXIT ERR
+
+# Global variables
+FORCE_MODE=false
+SKIP_BACKUP=false
+VERBOSE=false
+ERRORS_COUNT=0
+WARNINGS_COUNT=0
+
+# Logging function
+log() {
+    local level="$1"
+    shift
+    local message="$*"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    
+    case "$level" in
+        "INFO")  echo "[$timestamp] ℹ️  $message" ;;
+        "WARN")  
+            echo "[$timestamp] ⚠️  $message" >&2
+            ((WARNINGS_COUNT++))
+            ;;
+        "ERROR") 
+            echo "[$timestamp] ❌ $message" >&2
+            ((ERRORS_COUNT++))
+            ;;
+        "SUCCESS") echo "[$timestamp] ✅ $message" ;;
+        "DEBUG") [[ "$VERBOSE" == true ]] && echo "[$timestamp] 🐛 $message" >&2 ;;
+        *) echo "[$timestamp] $message" ;;
+    esac
+}
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --force)
+            FORCE_MODE=true
+            shift
+            ;;
+        --skip-backup)
+            SKIP_BACKUP=true
+            shift
+            ;;
+        --verbose|-v)
+            VERBOSE=true
+            shift
+            ;;
+        --help|-h)
+            echo "Usage: $0 [--force] [--skip-backup] [--verbose]"
+            echo "  --force       Skip confirmation prompts"
+            echo "  --skip-backup Skip configuration backup"
+            echo "  --verbose     Enable verbose output"
+            echo "  --help        Show this help message"
+            exit 0
+            ;;
+        *)
+            log "ERROR" "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
 # Determine the project root dynamically
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# Load environment variables
-# Try .env file first, then fall back to config.sh
-if [ -f "$PROJECT_ROOT/.env" ]; then
-    source "$PROJECT_ROOT/.env"
-elif [ -f "$PROJECT_ROOT/config/config.sh" ]; then
-    source "$PROJECT_ROOT/config/config.sh"
-else
-    echo "❌ No environment configuration found!"
-    echo "Please create .env file or run: bash scripts/setup-github-token.sh"
-    exit 1
+# Validate project root
+if [[ ! -d "$PROJECT_ROOT" ]]; then
+    log "ERROR" "Project root directory not found: $PROJECT_ROOT"
+    exit 2
 fi
 
-echo "Running MCP server maintenance tasks..."
+# Load environment variables with error handling
+load_environment() {
+    log "DEBUG" "Loading environment variables..."
+    
+    if [[ -f "$PROJECT_ROOT/.env" ]]; then
+        set -a
+        source "$PROJECT_ROOT/.env"
+        set +a
+        log "DEBUG" "Loaded environment from .env file"
+    elif [[ -f "$PROJECT_ROOT/config/config.sh" ]]; then
+        source "$PROJECT_ROOT/config/config.sh"
+        log "DEBUG" "Loaded environment from config.sh file"
+    else
+        log "ERROR" "No environment configuration found!"
+        log "ERROR" "Please create .env file or run: bash scripts/setup-github-token.sh"
+        exit 2
+    fi
+}
+
+# Initialize
+load_environment
+
+log "INFO" "Starting MCP server maintenance tasks..."
 
 # Update Node.js packages (for Jan.ai Integration - NPM fallback per ADR-002)
 echo "Updating Node.js packages for Jan.ai integration..."

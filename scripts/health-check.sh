@@ -1,42 +1,181 @@
 #!/bin/bash
 
+# =============================================================================
+# MCP Server Health Check Script
+# =============================================================================
+# Purpose: Comprehensive health check for MCP server infrastructure
+# Usage: bash scripts/health-check.sh [--verbose] [--json] [--fix]
+# Exit Codes:
+#   0 - All systems healthy
+#   1 - Critical issues detected
+#   2 - Warning issues detected
+#   3 - Configuration errors
+#   4 - Network connectivity issues
+# =============================================================================
+
+# Strict error handling
+set -euo pipefail
+
+# Trap for cleanup on script termination
+cleanup() {
+    local exit_code=$?
+    if [[ $exit_code -ne 0 && $exit_code -ne 2 ]]; then
+        echo "❌ Health check failed at line $1 with exit code $exit_code" >&2
+    fi
+}
+trap 'cleanup $LINENO' EXIT ERR
+
+# Global variables
+VERBOSE=false
+JSON_OUTPUT=false
+AUTO_FIX=false
+ISSUES_COUNT=0
+WARNINGS_COUNT=0
+CRITICAL_COUNT=0
+
+# Logging function
+log() {
+    local level="$1"
+    shift
+    local message="$*"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    
+    case "$level" in
+        "INFO")  
+            echo "[$timestamp] ℹ️  $message"
+            [[ "$VERBOSE" == true ]] && echo "[$timestamp] ℹ️  $message" >&2
+            ;;
+        "WARN")  
+            echo "[$timestamp] ⚠️  $message" >&2
+            ((WARNINGS_COUNT++))
+            ;;
+        "ERROR") 
+            echo "[$timestamp] ❌ $message" >&2
+            ((CRITICAL_COUNT++))
+            ;;
+        "SUCCESS") 
+            echo "[$timestamp] ✅ $message"
+            ;;
+        "DEBUG") 
+            [[ "$VERBOSE" == true ]] && echo "[$timestamp] 🐛 $message" >&2
+            ;;
+        *) echo "[$timestamp] $message" ;;
+    esac
+}
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --verbose|-v)
+            VERBOSE=true
+            shift
+            ;;
+        --json)
+            JSON_OUTPUT=true
+            shift
+            ;;
+        --fix)
+            AUTO_FIX=true
+            shift
+            ;;
+        --help|-h)
+            echo "Usage: $0 [--verbose] [--json] [--fix]"
+            echo "  --verbose  Enable verbose output"
+            echo "  --json     Output results in JSON format"
+            echo "  --fix      Automatically fix issues where possible"
+            echo "  --help     Show this help message"
+            exit 0
+            ;;
+        *)
+            log "ERROR" "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
 # Determine the project root dynamically
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# Load environment variables
-# Try .env file first, then fall back to config.sh
-if [ -f "$PROJECT_ROOT/.env" ]; then
-    source "$PROJECT_ROOT/.env"
-elif [ -f "$PROJECT_ROOT/config/config.sh" ]; then
-    source "$PROJECT_ROOT/config/config.sh"
-else
-    echo "❌ No environment configuration found!"
-    echo "Please create .env file or run: bash scripts/setup-github-token.sh"
-    exit 1
+# Validate project root
+if [[ ! -d "$PROJECT_ROOT" ]]; then
+    log "ERROR" "Project root directory not found: $PROJECT_ROOT"
+    exit 3
 fi
 
-echo "==== MCP Server Health Check (Docker-First Strategy) ===="
-echo "Started at: $(date)"
-echo ""
+# Load environment variables with error handling
+load_environment() {
+    log "DEBUG" "Loading environment variables..."
+    
+    if [[ -f "$PROJECT_ROOT/.env" ]]; then
+        set -a
+        source "$PROJECT_ROOT/.env"
+        set +a
+        log "DEBUG" "Loaded environment from .env file"
+    elif [[ -f "$PROJECT_ROOT/config/config.sh" ]]; then
+        source "$PROJECT_ROOT/config/config.sh"
+        log "DEBUG" "Loaded environment from config.sh file"
+    else
+        log "ERROR" "No environment configuration found!"
+        log "ERROR" "Please create .env file or run: bash scripts/setup-github-token.sh"
+        exit 3
+    fi
+}
 
-# Section 1: Docker Health
-echo "1️⃣ Docker Engine Health"
-echo "------------------------"
+# Initialize
+load_environment
 
-# Check if Docker is running
-if ! docker info > /dev/null 2>&1; then
-  echo "❌ Docker is not running! Please start Docker before proceeding."
-  exit 1
-else
-  docker_version=$(docker --version)
-  echo "✅ Docker is running: $docker_version"
+if [[ "$JSON_OUTPUT" != true ]]; then
+    echo "==== MCP Server Health Check (Multi-Platform Strategy) ===="
+    echo "Started at: $(date)"
+    echo "Project root: $PROJECT_ROOT"
+    echo ""
 fi
 
-# Check Docker system health
-echo ""
-echo "Docker System Health:"
-docker info | grep -E "Containers:|Running:|Paused:|Stopped:|Images:"
+# Function to check Docker health
+check_docker_health() {
+    log "INFO" "Checking Docker Engine health..."
+    
+    # Check if Docker command exists
+    if ! command -v docker &> /dev/null; then
+        log "ERROR" "Docker command not found. Please install Docker."
+        return 1
+    fi
+    
+    # Check if Docker is running
+    if ! docker info > /dev/null 2>&1; then
+        log "ERROR" "Docker is not running! Please start Docker before proceeding."
+        if [[ "$AUTO_FIX" == true ]]; then
+            log "INFO" "Attempting to start Docker..."
+            if command -v open &> /dev/null; then
+                open -a Docker 2>/dev/null || log "WARN" "Could not auto-start Docker Desktop"
+            fi
+        fi
+        return 1
+    fi
+    
+    local docker_version
+    if docker_version=$(docker --version 2>/dev/null); then
+        log "SUCCESS" "Docker is running: $docker_version"
+    else
+        log "WARN" "Docker is running but version check failed"
+    fi
+    
+    # Check Docker system health
+    log "DEBUG" "Checking Docker system health..."
+    if docker info | grep -E "Containers:|Running:|Paused:|Stopped:|Images:" > /dev/null 2>&1; then
+        if [[ "$VERBOSE" == true ]]; then
+            echo "Docker System Health:"
+            docker info | grep -E "Containers:|Running:|Paused:|Stopped:|Images:"
+        fi
+        log "SUCCESS" "Docker system health check passed"
+    else
+        log "WARN" "Could not retrieve Docker system information"
+    fi
+    
+    return 0
+}
 
 # Section 2: Required Docker Images
 echo ""
