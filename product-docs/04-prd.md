@@ -243,8 +243,8 @@ flowchart TB
 ```
 
 ### 4.2. Integration Requirements
-- **Claude Desktop**: JSON configuration in `~/Library/Application Support/Claude/`
-- **Claude Code**: MCP serve capability, stdio transport
+- **Claude Desktop**: JSON configuration in `~/.config/claude/claude_desktop_config.json`
+- **Claude Code**: JSON configuration in `~/.config/claude-code/mcp.json`
 - **Cline.bot**: `.vscode/mcp.json` workspace configuration
 - **Gemini CLI**: `.gemini/settings.json` with mcpServers field
 - **Docker**: Container management for GitHub and Memory Bank servers
@@ -403,6 +403,21 @@ Explicitly not included in this release:
     "github": {
       "command": "docker",
       "args": ["run", "-i", "--rm", "ghcr.io/github/github-mcp-server"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+**Claude Code** (`~/.config/claude-code/mcp.json`):
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server"],
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
       }
