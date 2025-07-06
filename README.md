@@ -1,336 +1,304 @@
-# Claude MCP Servers Configuration
+# Claude MCP Server Toolkit
+## Docker-First Configuration Strategy
 
-This directory contains the configuration and management scripts for Claude's Model Context Protocol (MCP) servers.
+This toolkit provides a comprehensive Docker-first solution for managing Claude's Model Context Protocol (MCP) servers, enhancing Claude's capabilities with secure, isolated access to external tools and resources.
 
 ## Overview
 
-MCP servers enhance Claude's capabilities by providing access to external tools and resources. This setup includes:
+The Claude MCP Server Toolkit implements a Docker-first strategy (per ADR-002) for enhanced security, isolation, and consistency across deployments. The toolkit supports nine Docker-based MCP servers with NPM fallback for Jan.ai integration.
 
-- **GitHub MCP Server**: Integration with GitHub repositories
-- **Context7 MCP Server**: Semantic memory capabilities
-- **Browser Tools MCP Server**: Web interaction tools
-- **Puppeteer MCP Server**: Automated browser control
-- **Memory Bank MCP Server**: Persistent memory storage
-- **Knowledge Graph MCP Server**: Structured knowledge representation
+### Supported MCP Servers
+
+1. **Atlassian MCP**: Confluence and Jira integration
+2. **GitHub MCP**: Repository management and code operations
+3. **Filesystem MCP**: Local file system operations
+4. **Git MCP**: Version control operations
+5. **Memory MCP**: Persistent memory storage
+6. **Browser Tools MCP**: Web automation and testing
+7. **Context7 MCP**: Documentation and knowledge retrieval
+8. **Fetch MCP**: Web content fetching
+9. **Sequential Thinking MCP**: Advanced reasoning capabilities
+10. **Jan.ai Integration**: NPM-based fallback (per ADR-002)
 
 ## Directory Structure
 
 ```
 [PROJECT_ROOT]/
-├── README.md                # Main documentation
-├── config/                  # Configuration files
-│   └── config.sh            # Environment variables
-├── data/                    # Persistent data storage
-│   ├── memory-bank/         # Memory Bank MCP data
-│   └── knowledge-graph/     # Knowledge Graph MCP data
-├── logs/                    # Log files
-├── scripts/                 # Utility scripts
-│   ├── health-check.sh      # Server health check
-│   ├── security-audit.sh    # Security audit script
-│   ├── maintenance.sh       # Maintenance tasks
-│   └── cleanup.sh           # Cleanup script
-└── vscode-integration/      # VS Code integration files
-    └── start-servers.sh     # VS Code startup script
+├── README.md                  # Main documentation
+├── TROUBLESHOOTING.md         # Comprehensive troubleshooting guide
+├── setup.sh                   # Main setup script (Docker-first)
+├── .env.template              # Environment variables template
+├── config/                    # Configuration files
+│   └── config.sh              # Environment variables (secure)
+├── data/                      # Persistent data storage
+│   ├── memory-bank/           # Memory Bank MCP data
+│   └── knowledge-graph/       # Knowledge Graph MCP data
+├── logs/                      # Log files
+├── product-docs/              # Detailed documentation
+│   ├── 01-business-case.md    # Business justification
+│   ├── 02-implementation-roadmap.md  # Implementation plan
+│   ├── 04-prd.md              # Product requirements
+│   ├── 05-trd.md              # Technical requirements
+│   ├── 06-user-guide.md       # User documentation
+│   ├── 07-data-requirements.md  # Data specifications
+│   ├── 08-architecture-decisions.md  # ADRs including Docker-first
+│   ├── 09-technical-design.md  # Technical specifications
+│   ├── 10-operations-guide.md  # Operations procedures
+│   ├── 11-contributing.md     # Contribution guidelines
+│   └── 13-jira-templates/     # Project management templates
+├── scripts/                   # Utility scripts
+│   ├── build-memory-bank.sh   # Build Memory Bank Docker image
+│   ├── cleanup.sh             # Remove MCP server configurations
+│   ├── github-mcp-connector.sh  # GitHub MCP connector
+│   ├── health-check.sh        # Docker-aware health checker
+│   ├── maintenance.sh         # Docker image updates and maintenance
+│   ├── memory-bank-connector.sh  # Memory Bank connector
+│   ├── security-audit.sh      # Docker security audit
+│   ├── setup-github-token.sh  # GitHub token validator
+│   └── sync-env-to-config.sh  # Environment sync utility
+└── vscode-integration/        # VS Code integration
+    └── start-servers.sh       # Docker-based server starter
 ```
 
 ## Quick Start
 
-1. **Set environment variables**:
-   Copy `.env.template` to `.env` and edit with your credentials:
-   ```bash
-   cp .env.template .env
-   nano .env
-   ```
-   The `config/config.sh` file will be generated automatically by `setup.sh`.
+### For All Users
 
-2. **Make scripts executable**:
-   ```bash
-   chmod +x scripts/*.sh vscode-integration/start-servers.sh
-   ```
+Run the automated setup script:
 
-3. **Set secure permissions for the config file**:
-   ```bash
-   chmod 600 config/config.sh
-   ```
-
-4. **Build the Memory Bank Docker image**:
-   ```bash
-   bash scripts/build-memory-bank.sh
-   ```
-
-5. **Start MCP servers**:
-   ```bash
-   bash vscode-integration/start-servers.sh
-   ```
-
-Alternatively, you can run the setup script which will handle steps 2-3:
 ```bash
 bash setup.sh
 ```
 
-## VS Code Integration
+This will:
+- Verify Docker is installed and running
+- Pull or build required Docker images
+- Configure environment variables
+- Set secure permissions
+- Start necessary Docker containers
+- Register MCP servers with Claude
+- Perform health checks
 
-### Automatic Setup
+### Platform-Specific Configuration
 
-Create a `.vscode/tasks.json` file in your project directory:
+#### Claude Desktop
+
+After running `setup.sh`, edit `~/.config/claude/claude_desktop_config.json`:
 
 ```json
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "Start MCP Servers",
-      "type": "shell",
-      "command": "bash ${workspaceFolder}/vscode-integration/start-servers.sh",
-      "isBackground": true,
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "never",
-        "panel": "dedicated",
-        "showReuseMessage": false
-      },
-      "runOptions": {
-        "runOn": "folderOpen"
+  "mcpServers": {
+    "atlassian": {
+      "command": "docker",
+      "args": ["run", "--rm", "-e", "CONFLUENCE_URL", "-e", "CONFLUENCE_USERNAME", "-e", "CONFLUENCE_API_TOKEN", "-e", "JIRA_URL", "-e", "JIRA_USERNAME", "-e", "JIRA_API_TOKEN", "mcp/atlassian"],
+      "env": {
+        "CONFLUENCE_URL": "https://your-domain.atlassian.net/wiki",
+        "CONFLUENCE_USERNAME": "your-email@domain.com",
+        "CONFLUENCE_API_TOKEN": "your_confluence_token",
+        "JIRA_URL": "https://your-domain.atlassian.net",
+        "JIRA_USERNAME": "your-email@domain.com",
+        "JIRA_API_TOKEN": "your_jira_token"
+      }
+    },
+    "github": {
+      "command": "bash",
+      "args": ["/path/to/scripts/github-mcp-connector.sh"]
+    },
+    "filesystem": {
+      "command": "docker",
+      "args": ["run", "--rm", "-v", "/Users:/mnt/users", "-v", "/tmp:/mnt/tmp", "mcp/server-filesystem", "/mnt/users", "/mnt/tmp"]
+    },
+    "git": {
+      "command": "docker",
+      "args": ["run", "--rm", "-v", "/path/to/your/repo:/repo", "mcp/server/git"]
+    },
+    "memory": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "-v", "/path/to/data/memory:/app/data", "mcp/server-memory"]
+    },
+    "browser-tools": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "mcp/browser-tools-mcp"]
+    },
+    "context7": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "context7-mcp"]
+    },
+    "fetch": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "zcaceres/fetch-mcp"]
+    },
+    "sequential-thinking": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "mcp/sequentialthinking"]
+    },
+    "memory-bank": {
+      "command": "bash",
+      "args": ["/path/to/scripts/memory-bank-connector.sh"]
+    },
+    "jan-ai": {
+      "command": "npx",
+      "args": ["-y", "jan-mcp-server"],
+      "env": {
+        "JAN_API_KEY": "your_jan_api_key"
       }
     }
-  ]
+  }
 }
 ```
 
-This will automatically start the MCP servers when VS Code opens.
+Replace `/path/to/` with the actual path to your toolkit installation.
 
-### How It Works
+#### Claude Code
 
-The VS Code integration:
-1. Uses a lockfile mechanism to prevent duplicate server instances
-2. Ensures proper cleanup when VS Code closes
-3. Maintains server registration across VS Code restarts
-4. Logs all activities for troubleshooting
+After running `setup.sh`, create or edit `~/.config/claude-code/mcp.json` with similar Docker-based configuration as above.
 
-## Available MCP Servers
+#### VS Code/Cline Integration
 
-### GitHub MCP Server
-- **Purpose**: Interact with GitHub repositories
-- **Status**: ✅ **WORKING** - Fixed with proper stdio argument
-- **Configuration**: Uses Docker container connector script
-- **Requirements**: Docker, GitHub Personal Access Token
-- **Connection Method**: 
-  - Uses existing Docker container `ghcr.io/github/github-mcp-server`
-  - Connector script: `scripts/github-mcp-connector.sh`
-  - Container ID: Auto-detected running container
+The setup script automatically configures VS Code integration with a `.vscode/tasks.json` file that calls `vscode-integration/start-servers.sh` on folder open.
 
-### Context7 MCP Server
-- **Purpose**: Semantic memory capabilities
-- **Command**: 
-  ```bash
-  claude mcp add "context7-mcp-server" "npx" "@upstash/context7-mcp@latest"
-  ```
-- **Requirements**: Node.js, npm
+### Environment Variables
 
-### Browser Tools MCP Server
-- **Purpose**: Web interaction tools
-- **Command**: 
-  ```bash
-  claude mcp add "browser-tools-mcp-server" "npx" "@agentdeskai/browser-tools-mcp@latest"
-  ```
-- **Requirements**: Node.js, npm
+Create `.env` from the template and add your credentials:
 
-### Puppeteer MCP Server
-- **Purpose**: Automated browser control
-- **Command**: 
-  ```bash
-  claude mcp add "puppeteer-mcp-server" "npx" "puppeteer-mcp-server"
-  ```
-- **Requirements**: Node.js, npm
-
-### Memory Bank MCP Server
-- **Purpose**: Persistent memory storage  
-- **Status**: ✅ **WORKING** - Fixed to prevent multiple containers
-- **Configuration**: Uses Docker connector script with --rm flag
-- **Requirements**: Docker, memory-bank-mcp:local Docker image
-- **Connection Method**:
-  - Uses `docker run -i --rm` for clean single-use containers
-  - Connector script: `scripts/memory-bank-connector.sh`
-  - Build image: `bash scripts/build-memory-bank.sh`
-
-### Knowledge Graph MCP Server
-- **Status**: Currently unavailable (package not found in npm registry)
-- **Purpose**: Structured knowledge representation
-- **Note**: This server is disabled until a working package is available
-
-## Security Considerations
-
-This setup includes several security features:
-
-1. **Environment Variable Protection**:
-   - Sensitive data stored in a protected config file
-   - Recommended permissions: `chmod 600 config/config.sh`
-
-2. **Lockfile Mechanism**:
-   - Prevents duplicate server instances
-   - Ensures proper cleanup on termination
-
-3. **Security Audit Script**:
-   - Checks for exposed secrets
-   - Verifies proper file permissions
-   - Validates tokens
-   - Reviews auto-approval settings
-
-Run the security audit with:
 ```bash
-bash scripts/security-audit.sh
+cp .env.template .env
+nano .env
 ```
+
+Required variables:
+- `GITHUB_PERSONAL_ACCESS_TOKEN`: For GitHub MCP server
+- Additional tokens for other services as needed
+
+## Docker Image Management
+
+### Pre-built Images
+
+The toolkit uses these Docker images pulled directly from registries:
+
+```bash
+docker pull ghcr.io/github/github-mcp-server
+docker pull mcp/atlassian
+docker pull mcp/server-filesystem
+docker pull mcp/server/git
+docker pull mcp/server-memory
+docker pull mcp/browser-tools-mcp
+docker pull zcaceres/fetch-mcp
+```
+
+### Custom Build Images
+
+Some MCP servers require custom builds:
+
+1. **Context7 MCP**:
+   ```bash
+   git clone https://github.com/upstash/context7-mcp.git
+   cd context7-mcp
+   docker build -t context7-mcp .
+   ```
+
+2. **Sequential Thinking MCP**:
+   ```bash
+   git clone https://github.com/modelcontextprotocol/servers.git
+   cd servers
+   docker build -t mcp/sequentialthinking -f src/sequentialthinking/Dockerfile .
+   ```
+
+3. **Memory Bank MCP** (automated build script):
+   ```bash
+   bash scripts/build-memory-bank.sh
+   ```
+
+## Security Features
+
+This toolkit includes comprehensive security features:
+
+1. **Container Isolation**: Each MCP server runs in its own Docker container
+2. **Non-Root Users**: Containers run with least privilege
+3. **Volume Security**: Proper permissions for mounted volumes
+4. **Token Management**: Secure handling of API tokens
+5. **Regular Security Audits**: `scripts/security-audit.sh`
+6. **Secure File Permissions**: 600 permissions for sensitive files
 
 ## Maintenance
 
-The maintenance script handles:
-- Updating Docker images
-- Updating Node.js packages
-- Cleaning up Docker resources
-- Backing up MCP configurations
-- Log rotation
+Regular maintenance tasks are automated:
 
-Run maintenance with:
 ```bash
 bash scripts/maintenance.sh
 ```
 
-## Troubleshooting
+This script:
+- Updates all Docker images
+- Rebuilds custom images from source
+- Cleans up unused containers and images
+- Performs system health checks
+- Rotates logs and backups
 
-### Quick Fixes for Common Issues
+## Health Monitoring
 
-#### GitHub MCP Server Connection Failed
-**Symptoms**: `✘ failed` status for github-mcp-server in Claude Code
+Monitor the health of your Docker-based MCP setup:
 
-**Solution**:
-1. Check if Docker container is running:
-   ```bash
-   docker ps | grep github-mcp-server
-   ```
-2. Update container ID in connector script:
-   ```bash
-   # Find container ID
-   CONTAINER_ID=$(docker ps --filter ancestor=ghcr.io/github/github-mcp-server --format "{{.ID}}")
-   # Update script
-   sed -i '' "s/CONTAINER_ID=\".*\"/CONTAINER_ID=\"$CONTAINER_ID\"/" scripts/github-mcp-connector.sh
-   ```
-3. Test the connector:
-   ```bash
-   echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | bash scripts/github-mcp-connector.sh
-   ```
-
-#### Memory Bank Multiple Containers Issue
-**Symptoms**: Multiple `memory-bank-mcp:local` containers in `docker ps -a`
-
-**Solution**:
-1. Clean up old containers:
-   ```bash
-   docker rm $(docker ps -aq --filter ancestor=memory-bank-mcp:local --filter status=exited)
-   ```
-2. The updated connector script now uses `--rm` flag to prevent this issue
-
-### General Troubleshooting
-
-If you encounter other issues:
-
-1. **Check the health of your setup**:
-   ```bash
-   bash scripts/health-check.sh
-   ```
-
-2. **Review logs**:
-   ```bash
-   cat logs/startup.log
-   ```
-
-3. **Verify MCP server registration**:
-   ```bash
-   claude mcp list
-   ```
-
-4. **Check for stale lockfiles**:
-   ```bash
-   ls -la vscode-integration/.server-lock
-   ```
-
-5. **Restart the servers**:
-   ```bash
-   bash scripts/cleanup.sh
-   bash vscode-integration/start-servers.sh
-   ```
-
-### Claude Code vs Cline Differences
-
-If MCP servers work in Cline/VS Code but not Claude Code:
-- **Check stdio argument**: Ensure connector scripts pass `stdio` argument to MCP servers
-- **Verify JSON-RPC protocol**: Test with manual JSON-RPC messages
-- **Container method**: Claude Code may require different connection approach than VS Code extensions
-
-## Cleanup
-
-To remove all MCP server configurations:
 ```bash
-bash scripts/cleanup.sh
+bash scripts/health-check.sh
 ```
 
-## Requirements
+This provides detailed status on:
+- Docker engine health
+- Container status
+- Image availability
+- Network connectivity
+- Configuration validity
+- Resource usage
 
-- **Docker**: For GitHub MCP Server and Memory Bank MCP Server
-- **Node.js and npm**: For Context7, Browser Tools, Puppeteer, and Knowledge Graph MCP servers
-- **curl**: For health checks and network connectivity tests
-- **VS Code**: For automated startup integration
+## Troubleshooting
 
-## Configuration
+For common issues and solutions, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
-### GitHub Token Setup
-
-1. Go to GitHub Settings > Developer settings > Personal access tokens
-2. Generate a new token with appropriate permissions
-3. Update `.env` with your token:
-   ```bash
-   export GITHUB_PERSONAL_ACCESS_TOKEN="your_actual_token_here"
-   ```
-
-### Memory Bank Setup
-
-The Memory Bank MCP server stores data in `data/memory-bank/`. This directory is automatically created and mounted into the Docker container.
-
-### Knowledge Graph Setup
-
-The Knowledge Graph MCP server uses a SQLite database stored in `data/knowledge-graph/kg.db`.
-
-## Common Issues
+Quick fixes for common issues:
 
 ### Docker Not Running
-If you see "Docker is not running" errors:
 ```bash
 # Start Docker Desktop
 open -a Docker
 ```
 
-### Permission Denied
-If you get permission errors:
+### GitHub MCP Container Issues
 ```bash
-chmod +x scripts/*.sh vscode-integration/start-servers.sh
-chmod 600 config/config.sh
+# Update container ID in connector script
+CONTAINER_ID=$(docker ps --filter ancestor=ghcr.io/github/github-mcp-server --format "{{.ID}}")
+sed -i '' "s/CONTAINER_ID=\".*\"/CONTAINER_ID=\"$CONTAINER_ID\"/" scripts/github-mcp-connector.sh
 ```
 
-### Node.js Not Found
-If Node.js is not installed:
+### Docker Image Pull Failures
 ```bash
-brew install node
+# Try explicit registry
+docker pull docker.io/library/node:18-alpine
 ```
 
-### MCP Servers Not Registering
-Check if Claude CLI is properly installed and configured:
+### Cleaning Up Old Containers
 ```bash
-claude mcp list
+docker container prune -f
 ```
 
-## Support
+## Documentation
 
-For issues with specific MCP servers, refer to their respective documentation:
-- [GitHub MCP Server](https://github.com/github/github-mcp-server)
-- [Context7 MCP Server](https://github.com/upstash/context7)
-- [Browser Tools MCP](https://github.com/AgentDeskAI/browser-tools-mcp)
-- [Puppeteer MCP Server](https://github.com/puppeteer/puppeteer)
+For detailed documentation, see the `product-docs/` directory:
+
+- **User Guide**: `product-docs/06-user-guide.md`
+- **Operations Guide**: `product-docs/10-operations-guide.md`
+- **Architecture Decisions**: `product-docs/08-architecture-decisions.md`
+- **Technical Requirements**: `product-docs/05-trd.md`
+
+## Requirements
+
+- **Docker**: Version 20.10.0 or higher
+- **Docker Desktop**: For macOS/Windows users
+- **Node.js and npm**: Version 16+ (for Jan.ai integration)
+- **Git**: For cloning repositories
+- **Bash**: For scripts
+- **Claude Desktop, Claude Code, or VS Code/Cline**: Target AI platform
+
+## License
+
+See the LICENSE file for details.
