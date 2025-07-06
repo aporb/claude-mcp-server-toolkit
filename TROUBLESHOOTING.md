@@ -240,10 +240,10 @@ docker exec -it [CONTAINER_ID] /bin/sh
 ### Claude Code Logs
 ```bash
 # Check Claude Code cache/logs
-ls -la ~/Library/Caches/claude-cli-nodejs/
+ls -la ~/.cache/claude-cli-nodejs/
 
 # MCP server specific logs
-ls -la ~/Library/Caches/claude-cli-nodejs/-Users-*/mcp-logs-*/
+ls -la ~/.cache/claude-cli-nodejs/mcp-logs/
 ```
 
 ### Health Check Script

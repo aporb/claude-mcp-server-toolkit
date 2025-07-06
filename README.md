@@ -16,7 +16,7 @@ MCP servers enhance Claude's capabilities by providing access to external tools 
 ## Directory Structure
 
 ```
-~/Documents/claude-mcp-servers/
+[PROJECT_ROOT]/
 ├── README.md                # Main documentation
 ├── config/                  # Configuration files
 │   └── config.sh            # Environment variables
@@ -36,10 +36,12 @@ MCP servers enhance Claude's capabilities by providing access to external tools 
 ## Quick Start
 
 1. **Set environment variables**:
-   Edit `config/config.sh` with your credentials:
+   Copy `.env.template` to `.env` and edit with your credentials:
    ```bash
-   nano config/config.sh
+   cp .env.template .env
+   nano .env
    ```
+   The `config/config.sh` file will be generated automatically by `setup.sh`.
 
 2. **Make scripts executable**:
    ```bash
@@ -79,7 +81,7 @@ Create a `.vscode/tasks.json` file in your project directory:
     {
       "label": "Start MCP Servers",
       "type": "shell",
-      "command": "bash ~/Documents/claude-mcp-servers/vscode-integration/start-servers.sh",
+      "command": "bash ${workspaceFolder}/vscode-integration/start-servers.sh",
       "isBackground": true,
       "problemMatcher": [],
       "presentation": {
@@ -284,7 +286,7 @@ bash scripts/cleanup.sh
 
 1. Go to GitHub Settings > Developer settings > Personal access tokens
 2. Generate a new token with appropriate permissions
-3. Update `config/config.sh` with your token:
+3. Update `.env` with your token:
    ```bash
    export GITHUB_PERSONAL_ACCESS_TOKEN="your_actual_token_here"
    ```
