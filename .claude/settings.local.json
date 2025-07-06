@@ -12,7 +12,8 @@
       "Bash(docker run:*)",
       "Bash(docker start:*)",
       "Bash(docker rm:*)",
-      "Bash(docker inspect:*)"
+      "Bash(docker inspect:*)",
+      "Bash(mkdir:*)"
     ],
     "deny": []
   }
