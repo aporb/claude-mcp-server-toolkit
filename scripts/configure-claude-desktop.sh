@@ -29,9 +29,88 @@ readonly INFO_SIGN="ℹ"
 CONFIG_PATH=""
 BACKUP_PATH=""
 
+# Security settings
+readonly DEFAULT_PERMISSIONS="600"
+readonly MCP_ENABLED_BY_DEFAULT="false"
+
+# Node.js requirements
+readonly MIN_NODE_VERSION="14.0.0"
+readonly REQUIRED_NPM_PACKAGES=(
+    "@modelcontextprotocol/server-filesystem"
+    "@browsermcp/mcp"
+)
+
+# MCP server configuration
+readonly MCP_SERVERS=(
+    "filesystem"
+    "browser"
+)
+
+# MCP server permissions (default: disabled)
+declare -A MCP_SERVER_ENABLED
+for server in "${MCP_SERVERS[@]}"; do
+    MCP_SERVER_ENABLED[$server]="$MCP_ENABLED_BY_DEFAULT"
+done
+
 # =============================================================================
 # Utility Functions
 # =============================================================================
+
+check_node_version() {
+    if ! command -v node >/dev/null 2>&1; then
+        log_message "ERROR" "Node.js is not installed. Please install Node.js from https://nodejs.org"
+        return 1
+    fi
+
+    local current_version=$(node --version | cut -d 'v' -f 2)
+    if ! verify_version "$current_version" "$MIN_NODE_VERSION"; then
+        log_message "ERROR" "Node.js version $current_version is below minimum required version $MIN_NODE_VERSION"
+        return 1
+    fi
+
+    log_message "SUCCESS" "Node.js version $current_version meets requirements"
+    return 0
+}
+
+verify_version() {
+    local current="$1"
+    local required="$2"
+    
+    IFS='.' read -ra current_parts <<< "$current"
+    IFS='.' read -ra required_parts <<< "$required"
+    
+    for i in {0..2}; do
+        if (( ${current_parts[$i]:-0} < ${required_parts[$i]:-0} )); then
+            return 1
+        elif (( ${current_parts[$i]:-0} > ${required_parts[$i]:-0} )); then
+            return 0
+        fi
+    done
+    return 0
+}
+
+check_npm_packages() {
+    local missing_packages=()
+    
+    for package in "${REQUIRED_NPM_PACKAGES[@]}"; do
+        if ! npm list -g "$package" >/dev/null 2>&1; then
+            missing_packages+=("$package")
+        fi
+    done
+    
+    if [ ${#missing_packages[@]} -gt 0 ]; then
+        log_message "INFO" "Installing required npm packages: ${missing_packages[*]}"
+        for package in "${missing_packages[@]}"; do
+            if ! npm install -g "$package"; then
+                log_message "ERROR" "Failed to install $package"
+                return 1
+            fi
+        done
+    fi
+    
+    log_message "SUCCESS" "All required npm packages are installed"
+    return 0
+}
 
 print_color() {
     local color="$1"
@@ -57,7 +136,6 @@ log_message() {
 # Configuration Functions
 # =============================================================================
 
-# Detect Claude Desktop configuration path
 detect_config_path() {
     local paths=(
         "$HOME/.config/claude/claude_desktop_config.json"
@@ -65,14 +143,12 @@ detect_config_path() {
         "$APPDATA/Claude/claude_desktop_config.json"
     )
     
-    # Check environment variable override
     if [[ -n "$CLAUDE_DESKTOP_CONFIG_PATH" ]]; then
         CONFIG_PATH="${CLAUDE_DESKTOP_CONFIG_PATH/#\~/$HOME}"
         log_message "INFO" "Using custom config path: $CONFIG_PATH"
         return 0
     fi
     
-    # Auto-detect based on OS
     for path in "${paths[@]}"; do
         local expanded_path="${path/#\~/$HOME}"
         local dir=$(dirname "$expanded_path")
@@ -84,18 +160,16 @@ detect_config_path() {
         fi
     done
     
-    # Default to the most common path
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        CONFIG_PATH="$HOME/.config/claude/claude_desktop_config.json"
+        CONFIG_PATH="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
     else
-        CONFIG_PATH="$HOME/.config/claude/claude_desktop_config.json"
+        CONFIG_PATH="$APPDATA/Claude/claude_desktop_config.json"
     fi
     
     log_message "INFO" "Using default config path: $CONFIG_PATH"
     return 0
 }
 
-# Create configuration directory
 create_config_directory() {
     local config_dir=$(dirname "$CONFIG_PATH")
     
@@ -113,7 +187,6 @@ create_config_directory() {
     return 0
 }
 
-# Backup existing configuration
 backup_existing_config() {
     if [[ -f "$CONFIG_PATH" ]]; then
         BACKUP_PATH="${CONFIG_PATH}.backup.$(date +%Y%m%d-%H%M%S)"
@@ -129,7 +202,6 @@ backup_existing_config() {
     return 0
 }
 
-# Load environment variables
 load_environment() {
     if [[ -f "$PROJECT_ROOT/.env" ]]; then
         source "$PROJECT_ROOT/.env"
@@ -139,95 +211,58 @@ load_environment() {
     fi
 }
 
-# Generate Claude Desktop MCP configuration
 generate_mcp_config() {
-    local config_json=$(cat << 'EOF'
+    local home_dir="${HOME/#\~/$HOME}"
+    local desktop_dir="$home_dir/Desktop"
+    local downloads_dir="$home_dir/Downloads"
+    local documents_dir="$home_dir/Documents"
+
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        CONFIG_DIR="$home_dir/Library/Application Support/Claude"
+        LOG_DIR="$home_dir/Library/Logs/Claude"
+    else
+        CONFIG_DIR="$APPDATA/Claude"
+        LOG_DIR="$APPDATA/Claude/logs"
+    fi
+
+    local config_json=$(cat << EOF
 {
+  "mcpEnabled": false,
   "mcpServers": {
-    "atlassian": {
-      "command": "docker",
-      "args": [
-        "run", "--rm", 
-        "-e", "CONFLUENCE_URL", 
-        "-e", "CONFLUENCE_USERNAME", 
-        "-e", "CONFLUENCE_API_TOKEN",
-        "-e", "JIRA_URL", 
-        "-e", "JIRA_USERNAME", 
-        "-e", "JIRA_API_TOKEN",
-        "ghcr.io/pashpashpash/mcp-atlassian"
-      ],
-      "env": {
-        "CONFLUENCE_URL": "${CONFLUENCE_URL:-}",
-        "CONFLUENCE_USERNAME": "${CONFLUENCE_USERNAME:-}",
-        "CONFLUENCE_API_TOKEN": "${CONFLUENCE_API_TOKEN:-}",
-        "JIRA_URL": "${JIRA_URL:-}",
-        "JIRA_USERNAME": "${JIRA_USERNAME:-}",
-        "JIRA_API_TOKEN": "${JIRA_API_TOKEN:-}"
-      }
-    },
-    "github": {
-      "command": "docker",
-      "args": [
-        "run", "--rm", "-i",
-        "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
-        "ghcr.io/github/github-mcp-server"
-      ],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN:-}"
-      }
-    },
     "filesystem": {
-      "command": "docker",
+      "enabled": ${MCP_SERVER_ENABLED["filesystem"]},
+      "command": "npx",
       "args": [
-        "run", "--rm",
-        "-v", "${HOME}:/mnt/home",
-        "-v", "/tmp:/mnt/tmp",
-        "npx", "-y", "@modelcontextprotocol/server-filesystem",
-        "/mnt/home", "/mnt/tmp"
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "$desktop_dir",
+        "$downloads_dir",
+        "$documents_dir",
+        "$CONFIG_DIR",
+        "$LOG_DIR"
       ]
     },
-    "git": {
-      "command": "docker",
+    "browser": {
+      "enabled": ${MCP_SERVER_ENABLED["browser"]},
+      "command": "npx",
       "args": [
-        "run", "--rm",
-        "-v", "${PROJECT_ROOT}:/repo",
-        "uvx", "mcp-server-git", "/repo"
+        "@browsermcp/mcp"
       ]
-    },
-    "memory": {
-      "command": "docker",
-      "args": [
-        "run", "--rm", "-i",
-        "-v", "${PROJECT_ROOT}/data/memory:/app/data",
-        "npx", "-y", "@modelcontextprotocol/server-memory"
-      ]
-    },
-    "browser-tools": {
-      "command": "docker",
-      "args": [
-        "run", "--rm", "-i",
-        "npx", "@agentdeskai/browser-tools-mcp@latest"
-      ]
-    },
-    "context7": {
-      "command": "docker",
-      "args": [
-        "run", "--rm", "-i",
-        "npx", "-y", "@upstash/context7-mcp@latest"
-      ]
-    },
-    "fetch": {
-      "command": "docker",
-      "args": [
-        "run", "--rm", "-i",
-        "node", "/app/dist/index.js"
-      ]
-    },
-    "sequential-thinking": {
-      "command": "docker",
-      "args": [
-        "run", "--rm", "-i",
-        "npx", "-y", "@modelcontextprotocol/server-sequential-thinking"
+    }
+  },
+  "security": {
+    "allowAllMCPToolPermissions": false,
+    "requireToolApproval": true,
+    "fileSystemAccess": {
+      "allowedPaths": [
+        "$desktop_dir",
+        "$downloads_dir",
+        "$documents_dir"
+      ],
+      "disallowedPaths": [
+        "$home_dir/.ssh",
+        "$home_dir/.config",
+        "$home_dir/.aws"
       ]
     }
   }
@@ -235,16 +270,12 @@ generate_mcp_config() {
 EOF
 )
     
-    # Substitute environment variables
     config_json=$(envsubst <<< "$config_json")
-    
-    # Remove empty environment values
     config_json=$(echo "$config_json" | jq 'walk(if type == "object" then with_entries(select(.value != "")) else . end)')
     
     echo "$config_json"
 }
 
-# Write configuration file
 write_config() {
     local config_content
     config_content=$(generate_mcp_config)
@@ -254,11 +285,8 @@ write_config() {
         
         if [[ $? -eq 0 ]]; then
             log_message "SUCCESS" "Claude Desktop configuration written to: $CONFIG_PATH"
-            
-            # Set appropriate permissions
             chmod 600 "$CONFIG_PATH"
             log_message "SUCCESS" "Set secure permissions (600) on config file"
-            
             return 0
         else
             log_message "ERROR" "Failed to write configuration file"
@@ -270,21 +298,18 @@ write_config() {
     fi
 }
 
-# Validate configuration
 validate_config() {
     if [[ ! -f "$CONFIG_PATH" ]]; then
         log_message "ERROR" "Configuration file not found: $CONFIG_PATH"
         return 1
     fi
     
-    # Validate JSON syntax
     if ! jq empty "$CONFIG_PATH" 2>/dev/null; then
         log_message "ERROR" "Configuration file contains invalid JSON"
         return 1
     fi
     
-    # Check for required MCP servers
-    local required_servers=("github" "filesystem" "memory")
+    local required_servers=("filesystem")
     local missing_servers=()
     
     for server in "${required_servers[@]}"; do
@@ -299,24 +324,21 @@ validate_config() {
         log_message "SUCCESS" "All required MCP servers configured"
     fi
     
-    # Validate environment variables
-    local missing_env=()
-    
-    if [[ -z "$GITHUB_PERSONAL_ACCESS_TOKEN" || "$GITHUB_PERSONAL_ACCESS_TOKEN" == "your_github_token_here" ]]; then
-        missing_env+=("GITHUB_PERSONAL_ACCESS_TOKEN")
-    fi
-    
-    if [[ ${#missing_env[@]} -gt 0 ]]; then
-        log_message "WARN" "Missing environment variables: ${missing_env[*]}"
-        log_message "INFO" "Update $PROJECT_ROOT/.env with your credentials"
-    else
-        log_message "SUCCESS" "Environment variables configured"
-    fi
-    
     return 0
 }
 
-# Show configuration summary
+enable_mcp_server() {
+    local server="$1"
+    if [[ " ${MCP_SERVERS[@]} " =~ " ${server} " ]]; then
+        MCP_SERVER_ENABLED[$server]="true"
+        log_message "SUCCESS" "Enabled MCP server: $server"
+        return 0
+    else
+        log_message "ERROR" "Unknown MCP server: $server"
+        return 1
+    fi
+}
+
 show_summary() {
     echo ""
     print_color "$CYAN" "╔═══════════════════════════════════════════════════════╗"
@@ -331,12 +353,10 @@ show_summary() {
         echo "  • Backup file: $BACKUP_PATH"
     fi
     
-    # Count configured MCP servers
     if [[ -f "$CONFIG_PATH" ]]; then
         local server_count=$(jq '.mcpServers | keys | length' "$CONFIG_PATH" 2>/dev/null || echo "0")
         echo "  • MCP servers: $server_count configured"
         
-        # List configured servers
         local servers=$(jq -r '.mcpServers | keys[]' "$CONFIG_PATH" 2>/dev/null)
         if [[ -n "$servers" ]]; then
             echo "  • Available servers:"
@@ -354,49 +374,44 @@ show_summary() {
     echo ""
 }
 
-# =============================================================================
-# Main Execution
-# =============================================================================
-
 main() {
     print_color "$CYAN" "╔═══════════════════════════════════════════════════════╗"
     print_color "$CYAN" "║        Claude Desktop MCP Configuration v$SCRIPT_VERSION          ║"
     print_color "$CYAN" "╚═══════════════════════════════════════════════════════╝"
     echo ""
     
-    # Load environment
+    if ! check_node_version; then
+        exit 1
+    fi
+
+    if ! check_npm_packages; then
+        exit 1
+    fi
+    
     load_environment
     
-    # Detect configuration path
     if ! detect_config_path; then
         exit 1
     fi
     
-    # Create configuration directory
     if ! create_config_directory; then
         exit 1
     fi
     
-    # Backup existing configuration
     if ! backup_existing_config; then
         exit 1
     fi
     
-    # Write new configuration
     if ! write_config; then
         exit 1
     fi
     
-    # Validate configuration
     validate_config
-    
-    # Show summary
     show_summary
     
     log_message "SUCCESS" "Claude Desktop configuration completed successfully!"
 }
 
-# Parse command line arguments
 case "${1:-configure}" in
     "configure")
         main
