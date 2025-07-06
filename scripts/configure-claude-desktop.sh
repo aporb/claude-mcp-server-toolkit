@@ -38,12 +38,20 @@ readonly MIN_NODE_VERSION="14.0.0"
 readonly REQUIRED_NPM_PACKAGES=(
     "@modelcontextprotocol/server-filesystem"
     "@browsermcp/mcp"
+    "@modelcontextprotocol/server-memory"
+    "@modelcontextprotocol/server-git"
+    "@upstash/context7-mcp"
+    "@modelcontextprotocol/server-sequential-thinking"
 )
 
 # MCP server configuration
 readonly MCP_SERVERS=(
     "filesystem"
     "browser"
+    "memory"
+    "git"
+    "context7"
+    "sequential-thinking"
 )
 
 # MCP server permissions (default: disabled)
@@ -227,42 +235,50 @@ generate_mcp_config() {
 
     local config_json=$(cat << EOF
 {
-  "mcpEnabled": false,
   "mcpServers": {
     "filesystem": {
-      "enabled": ${MCP_SERVER_ENABLED["filesystem"]},
       "command": "npx",
       "args": [
         "-y",
         "@modelcontextprotocol/server-filesystem",
         "$desktop_dir",
         "$downloads_dir",
-        "$documents_dir",
-        "$CONFIG_DIR",
-        "$LOG_DIR"
+        "$documents_dir"
       ]
     },
     "browser": {
-      "enabled": ${MCP_SERVER_ENABLED["browser"]},
       "command": "npx",
       "args": [
+        "-y",
         "@browsermcp/mcp"
       ]
-    }
-  },
-  "security": {
-    "allowAllMCPToolPermissions": false,
-    "requireToolApproval": true,
-    "fileSystemAccess": {
-      "allowedPaths": [
-        "$desktop_dir",
-        "$downloads_dir",
-        "$documents_dir"
-      ],
-      "disallowedPaths": [
-        "$home_dir/.ssh",
-        "$home_dir/.config",
-        "$home_dir/.aws"
+    },
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ]
+    },
+    "git": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-git"
+      ]
+    },
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp@latest"
+      ]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
       ]
     }
   }
