@@ -38,20 +38,12 @@ readonly MIN_NODE_VERSION="14.0.0"
 readonly REQUIRED_NPM_PACKAGES=(
     "@modelcontextprotocol/server-filesystem"
     "@browsermcp/mcp"
-    "@modelcontextprotocol/server-memory"
-    "@modelcontextprotocol/server-git"
-    "@upstash/context7-mcp"
-    "@modelcontextprotocol/server-sequential-thinking"
 )
 
 # MCP server configuration
 readonly MCP_SERVERS=(
     "filesystem"
     "browser"
-    "memory"
-    "git"
-    "context7"
-    "sequential-thinking"
 )
 
 # MCP server permissions (default: disabled)
@@ -235,6 +227,23 @@ generate_mcp_config() {
 
     local config_json=$(cat << EOF
 {
+  "mcpEnabled": true,
+  "security": {
+    "allowAllMCPToolPermissions": false,
+    "requireToolApproval": true,
+    "fileSystemAccess": {
+      "allowedPaths": [
+        "$desktop_dir",
+        "$downloads_dir",
+        "$documents_dir"
+      ],
+      "disallowedPaths": [
+        "$home_dir/.ssh",
+        "$home_dir/.config",
+        "$home_dir/.aws"
+      ]
+    }
+  },
   "mcpServers": {
     "filesystem": {
       "command": "npx",
@@ -244,42 +253,48 @@ generate_mcp_config() {
         "$desktop_dir",
         "$downloads_dir",
         "$documents_dir"
-      ]
+      ],
+      "env": {}
     },
     "browser": {
       "command": "npx",
       "args": [
         "-y",
         "@browsermcp/mcp"
-      ]
+      ],
+      "env": {}
     },
     "memory": {
       "command": "npx",
       "args": [
         "-y",
         "@modelcontextprotocol/server-memory"
-      ]
+      ],
+      "env": {}
     },
     "git": {
       "command": "npx",
       "args": [
         "-y",
         "@modelcontextprotocol/server-git"
-      ]
+      ],
+      "env": {}
     },
     "context7": {
       "command": "npx",
       "args": [
         "-y",
-        "@upstash/context7-mcp@latest"
-      ]
+        "@upstash/context7-mcp"
+      ],
+      "env": {}
     },
     "sequential-thinking": {
       "command": "npx",
       "args": [
         "-y",
         "@modelcontextprotocol/server-sequential-thinking"
-      ]
+      ],
+      "env": {}
     }
   }
 }
