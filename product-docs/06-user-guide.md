@@ -1,11 +1,11 @@
 # User Guide
-## Claude MCP Servers Configuration
+## Multi-Platform AI Assistant Configuration
 
 ## Document Control
 | Field | Value |
 |-------|-------|
-| Document Version | 1.0 |
-| Last Updated | July 2025 |
+| Document Version | 2.0 |
+| Last Updated | January 2025 |
 | Status | **ACTIVE** |
 | Document Owner | Development Team |
 | Audience | End Users, Developers |
@@ -20,243 +20,176 @@ Before setting up MCP servers, ensure you have:
 
 - **Operating System**: macOS 12+, Windows 10+, or Ubuntu 20.04+
 - **Docker Desktop**: Primary requirement for MCP server deployment
-- **Node.js**: Version 16+ (fallback for Jan.ai integration and legacy systems)
-- **Git**: For cloning the repository and building custom images
-- **Claude Desktop, Claude Code, or VS Code**: Target AI platform
+- **AI Platform**: One or more of:
+  - Claude Desktop
+  - Claude Code (VS Code extension)
+  - VS Code with Cline extension
+  - Gemini CLI (framework ready)
+  - Jan.ai (framework ready)
+- **Node.js**: Version 16+ (for some MCP servers)
+- **Git**: For cloning the repository
+- **Internet Connection**: For downloading Docker images and validating credentials
 
-### 1.2. Docker Setup Requirements
+### 1.2. What's New in Version 2.0
 
-The toolkit now uses a **Docker-first strategy** for better security, isolation, and consistency:
+**🎯 Interactive Setup Wizard**
+- Automatic platform detection and selection
+- Guided credential collection with validation
+- Professional CLI with progress indicators and colors
+- Cross-platform compatibility (macOS, Linux, Windows)
 
-```bash
-# Verify Docker installation
-docker --version
-# Should return: Docker version 20.10.0 or higher
+**🔧 Enterprise-Grade Features**
+- Configuration backup and restore
+- JSON validation and security hardening
+- Comprehensive health checks and monitoring
+- Advanced command-line options
 
-# Verify Docker is running
-docker ps
-# Should return container list without errors
+**🚀 Multi-Platform Support**
+- Claude Desktop: Automatic JSON configuration generation
+- Claude Code: VS Code extension integration
+- VS Code/Cline: Workspace configuration with tasks
+- Gemini CLI & Jan.ai: Framework ready for integration
 
-# Test Docker functionality
-docker run hello-world
-# Should complete successfully
-```
-
-**Docker Image Requirements:**
-- **Pre-built Images**: Pulled directly from registries (recommended)
-- **Custom Build Images**: Built locally for Context7, Sequential Thinking, Memory Bank
-- **Storage**: ~2GB free space for Docker images
-- **Network**: Internet access for pulling images and building custom ones
-
-### 1.2. Installation Overview
+### 1.3. Quick Start Overview
 
 ```mermaid
 flowchart TD
-    A[Clone Repository] --> B[Set Environment Variables]
-    B --> C[Choose Platform]
-    C --> D[Claude Desktop]
-    C --> E[Claude Code]
-    C --> F[VS Code/Cline]
-    D --> G[Configure claude_desktop_config.json]
-    E --> H[Configure mcp.json]
-    F --> I[Run setup.sh]
-    G --> J[Restart Claude Desktop]
-    H --> K[Test with Claude Code]
-    I --> L[Verify VS Code Integration]
-    J --> M[Verify MCP Servers]
-    K --> M
-    L --> M
+    A[Clone Repository] --> B[Run Interactive Setup]
+    B --> C[Platform Detection]
+    C --> D[Select Platforms]
+    D --> E[Credential Collection]
+    E --> F[Docker Management]
+    F --> G[Configuration Generation]
+    G --> H[Health Validation]
+    H --> I[Ready to Use]
+    
+    style B fill:#e1f5fe
+    style C fill:#f3e5f5
+    style D fill:#e8f5e8
+    style E fill:#fff3e0
+    style F fill:#fce4ec
+    style G fill:#e0f2f1
+    style H fill:#f1f8e9
+    style I fill:#e8eaf6
 ```
 
 ---
 
-## 2. Platform-Specific Setup Guides
+## 2. Automated Setup Process (Recommended)
 
-### 2.1. Claude Desktop Setup
+### 2.1. Interactive Setup Wizard
 
-#### Step 1: Environment Setup
+The toolkit now features a comprehensive interactive setup wizard that handles all platform configuration automatically:
+
 ```bash
 # Clone the repository
 git clone https://github.com/aporb/claude-mcp-server-toolkit.git
 cd claude-mcp-server-toolkit
 
-# Set up environment variables
-cp .env.template .env
-nano .env  # Add your GitHub token and other credentials
-```
-
-#### Step 2: Build Docker Images
-```bash
-# Build the Memory Bank MCP server image
-bash scripts/build-memory-bank.sh
-```
-
-#### Step 3: Pull/Build Docker Images
-```bash
-# Pull pre-built images
-docker pull ghcr.io/github/github-mcp-server
-docker pull mcp/atlassian
-docker pull mcp/server-filesystem
-docker pull mcp/server/git
-docker pull mcp/server-memory
-docker pull mcp/browser-tools-mcp
-docker pull zcaceres/fetch-mcp
-
-# Build custom images
-git clone https://github.com/upstash/context7-mcp.git
-cd context7-mcp && docker build -t context7-mcp .
-cd ..
-
-git clone https://github.com/modelcontextprotocol/servers.git
-cd servers && docker build -t mcp/sequentialthinking -f src/sequentialthinking/Dockerfile .
-cd ..
-```
-
-#### Step 4: Configure Claude Desktop
-Create or edit `~/.config/claude/claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "atlassian": {
-      "command": "docker",
-      "args": ["run", "--rm", "-e", "CONFLUENCE_URL", "-e", "CONFLUENCE_USERNAME", "-e", "CONFLUENCE_API_TOKEN", "-e", "JIRA_URL", "-e", "JIRA_USERNAME", "-e", "JIRA_API_TOKEN", "mcp/atlassian"],
-      "env": {
-        "CONFLUENCE_URL": "https://your-domain.atlassian.net/wiki",
-        "CONFLUENCE_USERNAME": "your-email@domain.com",
-        "CONFLUENCE_API_TOKEN": "your_confluence_token",
-        "JIRA_URL": "https://your-domain.atlassian.net",
-        "JIRA_USERNAME": "your-email@domain.com",
-        "JIRA_API_TOKEN": "your_jira_token"
-      }
-    },
-    "github": {
-      "command": "docker",
-      "args": ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server"],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "your_github_token"
-      }
-    },
-    "filesystem": {
-      "command": "docker",
-      "args": ["run", "--rm", "-v", "/Users/username/Desktop:/mnt/desktop", "-v", "/Users/username/Downloads:/mnt/downloads", "mcp/server-filesystem", "/mnt/desktop", "/mnt/downloads"]
-    },
-    "git": {
-      "command": "docker",
-      "args": ["run", "--rm", "-v", "/path/to/your/repo:/repo", "mcp/server/git"]
-    },
-    "memory": {
-      "command": "docker",
-      "args": ["run", "--rm", "-i", "-v", "$(pwd)/data/memory:/app/data", "mcp/server-memory"]
-    },
-    "browser-tools": {
-      "command": "docker",
-      "args": ["run", "--rm", "-i", "mcp/browser-tools-mcp"]
-    },
-    "context7": {
-      "command": "docker",
-      "args": ["run", "--rm", "-i", "context7-mcp"]
-    },
-    "fetch": {
-      "command": "docker",
-      "args": ["run", "--rm", "-i", "zcaceres/fetch-mcp"]
-    },
-    "sequential-thinking": {
-      "command": "docker",
-      "args": ["run", "--rm", "-i", "mcp/sequentialthinking"]
-    },
-    "jan-ai": {
-      "command": "npx",
-      "args": ["-y", "jan-mcp-server"],
-      "env": {
-        "JAN_API_KEY": "your_jan_api_key"
-      }
-    }
-  }
-}
-```
-
-#### Step 4: Verification
-1. **Restart Claude Desktop**
-2. **Look for MCP slider icon** in the chat input area
-3. **Test MCP functionality** by asking Claude to interact with GitHub
-
-### 2.2. Claude Code Setup
-
-#### Step 1: Environment Setup (Same as Claude Desktop)
-```bash
-# Clone and set up environment
-git clone https://github.com/aporb/claude-mcp-server-toolkit.git
-cd claude-mcp-server-toolkit
-cp .env.template .env
-nano .env
-```
-
-#### Step 2: Build Docker Images
-```bash
-bash scripts/build-memory-bank.sh
-```
-
-#### Step 3: Configure Claude Code
-Create `~/.config/claude-code/mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "github": {
-      "command": "docker",
-      "args": ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server"]
-    },
-    "context7": {
-      "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp@latest"]
-    },
-    "browser-tools": {
-      "command": "npx",
-      "args": ["-y", "@agentdeskai/browser-tools-mcp@latest"]
-    },
-    "puppeteer": {
-      "command": "npx", 
-      "args": ["-y", "puppeteer-mcp-server"]
-    },
-    "memory-bank": {
-      "command": "bash",
-      "args": ["/full/path/to/scripts/memory-bank-connector.sh"]
-    },
-    "filesystem": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/username/Desktop", "/Users/username/Downloads"]
-    }
-  }
-}
-```
-
-#### Step 4: Verification
-```bash
-# Start Claude Code
-claude
-
-# Test MCP functionality
-/mcp  # Should show available MCP servers
-```
-
-### 2.3. VS Code/Cline Setup
-
-#### Step 1: Automated Setup
-```bash
-# Clone and run setup script
-git clone https://github.com/aporb/claude-mcp-server-toolkit.git
-cd claude-mcp-server-toolkit
+# Run the interactive setup wizard
 bash setup.sh
 ```
 
-#### Step 2: VS Code Integration
-The setup script automatically creates `.vscode/tasks.json` for auto-starting MCP servers.
+#### Setup Wizard Flow
 
-#### Step 3: Verification
-1. **Open VS Code** in the project directory
-2. **Check Cline extension** for MCP server availability
-3. **Test functionality** through Cline interface
+```mermaid
+flowchart TD
+    A[bash setup.sh] --> B[System Requirements Check]
+    B --> C[Platform Detection]
+    C --> D[Platform Selection Menu]
+    D --> E[Credential Collection Wizard]
+    E --> F[Docker Image Management]
+    F --> G[Platform Configuration Generation]
+    G --> H[Health Validation]
+    H --> I[Setup Complete]
+    
+    D --> D1[Claude Desktop ✓]
+    D --> D2[Claude Code ✓]
+    D --> D3[VS Code/Cline ✓]
+    D --> D4[Gemini CLI]
+    D --> D5[Jan.ai]
+    
+    E --> E1[GitHub Token]
+    E --> E2[Atlassian APIs]
+    E --> E3[Gemini API]
+    E --> E4[Jan.ai API]
+    E --> E5[OpenAI API]
+```
+
+#### What the Setup Wizard Does
+
+1. **System Requirements Check**: Verifies Docker installation and system compatibility
+2. **Platform Detection**: Automatically detects installed AI platforms with version information
+3. **Interactive Platform Selection**: Choose which platforms to configure with visual menu
+4. **Guided Credential Collection**: Secure collection and validation of API tokens
+5. **Docker Management**: Automatic pulling and building of required Docker images
+6. **Configuration Generation**: Creates platform-specific configuration files
+7. **Security Hardening**: Sets proper file permissions and backup configurations
+8. **Health Validation**: Comprehensive system health check
+
+### 2.2. Advanced Setup Options
+
+```bash
+# Show all available options
+bash setup.sh --help
+
+# Preview what would be done without making changes
+bash setup.sh --dry-run
+
+# Automated deployment (minimal prompts)
+bash setup.sh --quiet --auto-build
+
+# Verbose output for debugging
+bash setup.sh --verbose
+
+# Skip health check for faster setup
+bash setup.sh --skip-health-check
+```
+
+### 2.3. Platform-Specific Configuration Scripts
+
+For manual or individual platform configuration:
+
+```bash
+# Detect installed AI platforms
+bash scripts/platform-detector.sh
+
+# Configure specific platforms individually
+bash scripts/configure-claude-desktop.sh
+bash scripts/configure-claude-code.sh
+bash scripts/configure-vscode-cline.sh
+```
+
+### 2.4. Generated Configuration Examples
+
+The setup wizard automatically generates optimized configurations:
+
+#### Claude Desktop Configuration
+**File**: `~/.config/claude/claude_desktop_config.json`
+
+Generated with Docker-based MCP servers, environment variable substitution, and security hardening.
+
+#### Claude Code Configuration  
+**File**: `~/.config/claude-code/mcp.json`
+
+Optimized for VS Code extension with appropriate server selections.
+
+#### VS Code/Cline Configuration
+**Files**: 
+- `.vscode/mcp.json` - MCP server configuration
+- `.vscode/tasks.json` - Development tasks for MCP management
+- `.vscode/settings.json` - Workspace settings
+
+Includes integrated task management for MCP servers.
+
+### 2.5. Verification Process
+
+After setup completion:
+
+1. **Automatic Health Check**: Validates all configurations and services
+2. **Platform-Specific Tests**: Tests each configured platform
+3. **Detailed Summary**: Professional status table with next steps
+4. **Troubleshooting Guidance**: Clear instructions if issues are found
 
 ---
 

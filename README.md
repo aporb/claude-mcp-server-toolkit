@@ -1,11 +1,18 @@
 # Claude MCP Server Toolkit
-## Docker-First Configuration Strategy
+## Multi-Platform AI Assistant Configuration
 
-This toolkit provides a comprehensive Docker-first solution for managing Claude's Model Context Protocol (MCP) servers, enhancing Claude's capabilities with secure, isolated access to external tools and resources.
+This toolkit provides a comprehensive, enterprise-grade solution for setting up and managing Model Context Protocol (MCP) servers across multiple AI platforms. It features automatic platform detection, interactive setup wizards, and Docker-first architecture for enhanced security and consistency.
 
 ## Overview
 
-The Claude MCP Server Toolkit implements a Docker-first strategy (per ADR-002) for enhanced security, isolation, and consistency across deployments. The toolkit supports nine Docker-based MCP servers with NPM fallback for Jan.ai integration.
+The Claude MCP Server Toolkit is a professional multi-platform configuration system that supports:
+- **Auto-detection** of installed AI platforms (Claude Desktop, Claude Code, VS Code/Cline, Gemini CLI, Jan.ai)
+- **Interactive setup wizards** with guided credential collection and validation
+- **Docker-first architecture** (per ADR-002) for enhanced security, isolation, and consistency
+- **Enterprise-grade features** including configuration backup, validation, and security hardening
+- **Cross-platform compatibility** (macOS, Linux, Windows)
+
+The toolkit transforms complex MCP server setup into a streamlined, professional experience suitable for both enterprise deployment and personal development workflows.
 
 ### Supported MCP Servers
 
@@ -49,10 +56,14 @@ The Claude MCP Server Toolkit implements a Docker-first strategy (per ADR-002) f
 ├── scripts/                   # Utility scripts
 │   ├── build-memory-bank.sh   # Build Memory Bank Docker image
 │   ├── cleanup.sh             # Remove MCP server configurations
+│   ├── configure-claude-desktop.sh   # Claude Desktop configurator (NEW)
+│   ├── configure-claude-code.sh      # Claude Code configurator (NEW)
+│   ├── configure-vscode-cline.sh     # VS Code/Cline configurator (NEW)
 │   ├── github-mcp-connector.sh  # GitHub MCP connector
 │   ├── health-check.sh        # Docker-aware health checker
 │   ├── maintenance.sh         # Docker image updates and maintenance
 │   ├── memory-bank-connector.sh  # Memory Bank connector
+│   ├── platform-detector.sh   # AI platform detection (NEW)
 │   ├── security-audit.sh      # Docker security audit
 │   ├── setup-github-token.sh  # GitHub token validator
 │   └── sync-env-to-config.sh  # Environment sync utility
@@ -62,28 +73,75 @@ The Claude MCP Server Toolkit implements a Docker-first strategy (per ADR-002) f
 
 ## Quick Start
 
-### For All Users
+### Interactive Setup (Recommended)
 
-Run the automated setup script:
+Run the automated setup script with interactive platform detection:
 
 ```bash
 bash setup.sh
 ```
 
-This will:
-- Verify Docker is installed and running
-- Pull or build required Docker images
-- Configure environment variables
-- Set secure permissions
-- Start necessary Docker containers
-- Register MCP servers with Claude
-- Perform health checks
+The setup wizard will:
+1. **System Requirements Check**: Verify Docker is installed and running
+2. **Platform Detection**: Auto-detect installed AI platforms (Claude Desktop, Claude Code, VS Code/Cline, Gemini CLI, Jan.ai)
+3. **Platform Selection**: Interactive selection of platforms to configure
+4. **Credential Collection**: Guided setup for all service APIs with validation
+5. **Docker Management**: Pull or build required Docker images
+6. **Configuration Generation**: Create platform-specific configurations automatically
+7. **Security Setup**: Set secure permissions and backup existing configs
+8. **Health Validation**: Comprehensive system health check
 
-### Platform-Specific Configuration
+### Advanced Setup Options
+
+```bash
+# Show all available options
+bash setup.sh --help
+
+# Dry run to see what would be done
+bash setup.sh --dry-run
+
+# Quiet mode for automated deployment
+bash setup.sh --quiet
+
+# Verbose mode for debugging
+bash setup.sh --verbose
+
+# Auto-build missing custom images
+bash setup.sh --auto-build
+```
+
+### Manual Platform Configuration
+
+If you prefer manual configuration or need to reconfigure specific platforms:
+
+#### Platform Detection
+
+```bash
+# Detect installed AI platforms
+bash scripts/platform-detector.sh
+
+# Interactive platform selection
+bash scripts/platform-detector.sh select
+```
+
+#### Configure Individual Platforms
+
+```bash
+# Configure Claude Desktop
+bash scripts/configure-claude-desktop.sh
+
+# Configure Claude Code (VS Code extension)
+bash scripts/configure-claude-code.sh
+
+# Configure VS Code/Cline
+bash scripts/configure-vscode-cline.sh
+```
+
+### Generated Configuration Examples
 
 #### Claude Desktop
 
-After running `setup.sh`, edit `~/.config/claude/claude_desktop_config.json`:
+The setup script automatically generates `~/.config/claude/claude_desktop_config.json`:
 
 ```json
 {

@@ -1,11 +1,11 @@
 # Operations Guide
-## Claude MCP Servers Configuration
+## Multi-Platform AI Assistant Configuration
 
 ## Document Control
 | Field | Value |
 |-------|-------|
-| Document Version | 1.0 |
-| Last Updated | July 2025 |
+| Document Version | 2.0 |
+| Last Updated | January 2025 |
 | Status | **ACTIVE** |
 | Document Owner | Operations Team |
 | Audience | DevOps, System Administrators, Developers |
@@ -14,55 +14,85 @@
 
 ## 1. Deployment Procedures
 
-### 1.1. Initial Deployment
+### 1.1. Enterprise Deployment Strategy
 
 #### Pre-Deployment Checklist
-- [ ] Docker Desktop installed and running
+- [ ] Docker Desktop installed and running (version 20.10.0+)
 - [ ] Node.js 16+ installed
 - [ ] Git access configured
-- [ ] Required tokens and credentials available
-- [ ] Target AI platform installed (Claude Desktop/Code/VS Code)
+- [ ] AI platforms installed:
+  - [ ] Claude Desktop
+  - [ ] Claude Code (VS Code extension)  
+  - [ ] VS Code with Cline extension
+  - [ ] Gemini CLI (if required)
+  - [ ] Jan.ai (if required)
+- [ ] Required tokens and credentials available:
+  - [ ] GitHub Personal Access Token
+  - [ ] Atlassian API tokens (if required)
+  - [ ] Gemini API key (if required)
+  - [ ] Jan.ai API credentials (if required)
+- [ ] Network access to Docker registries and NPM
+- [ ] Administrative privileges for configuration file creation
 
-#### Deployment Workflow
+#### Enhanced Deployment Workflow
 
 ```mermaid
 flowchart TD
     A[Pre-deployment Checks] --> B[Clone Repository]
-    B --> C[Environment Setup]
-    C --> D[Docker Image Build]
-    D --> E[Platform Configuration]
-    E --> F[Service Verification]
-    F --> G[Health Check]
-    G --> H{All Services OK?}
-    H -->|Yes| I[Deployment Complete]
-    H -->|No| J[Troubleshoot Issues]
-    J --> F
+    B --> C[Run Interactive Setup]
+    C --> D[Platform Detection]
+    D --> E[Platform Selection]
+    E --> F[Credential Collection]
+    F --> G[Docker Management]
+    G --> H[Configuration Generation]
+    H --> I[Health Validation]
+    I --> J{All Platforms OK?}
+    J -->|Yes| K[Deployment Complete]
+    J -->|No| L[Platform-Specific Fixes]
+    L --> M[Re-validate]
+    M --> J
+    
+    style C fill:#e1f5fe
+    style D fill:#f3e5f5
+    style E fill:#e8f5e8
+    style F fill:#fff3e0
+    style G fill:#fce4ec
+    style H fill:#e0f2f1
+    style I fill:#f1f8e9
 ```
 
-#### Step-by-Step Deployment
+#### Automated Deployment Process
 
 ```bash
 # 1. Clone repository
 git clone https://github.com/aporb/claude-mcp-server-toolkit.git
 cd claude-mcp-server-toolkit
 
-# 2. Environment configuration
-cp .env.template .env
-# Edit .env with required credentials
+# 2. Run interactive setup wizard
+bash setup.sh
 
-# 3. Set permissions
-chmod +x scripts/*.sh
-chmod 600 .env
+# 3. Advanced deployment options
+bash setup.sh --help                    # Show all options
+bash setup.sh --dry-run                 # Preview changes
+bash setup.sh --quiet --auto-build      # Automated deployment
+bash setup.sh --verbose                 # Debug deployment
+```
 
-# 4. Build Docker images
-bash scripts/build-memory-bank.sh
+#### Manual Platform Configuration
 
-# 5. Run health check
+For environments requiring manual control:
+
+```bash
+# Platform detection and selection
+bash scripts/platform-detector.sh select
+
+# Configure individual platforms
+bash scripts/configure-claude-desktop.sh
+bash scripts/configure-claude-code.sh
+bash scripts/configure-vscode-cline.sh
+
+# Validation
 bash scripts/health-check.sh
-
-# 6. Platform-specific setup
-bash setup.sh  # For VS Code/Cline
-# OR manually configure Claude Desktop/Code (see User Guide)
 ```
 
 ### 1.2. Platform-Specific Deployment
