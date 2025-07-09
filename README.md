@@ -13,6 +13,276 @@ MCP servers enhance Claude's capabilities by providing access to external tools 
 - **Memory Bank MCP Server**: Persistent memory storage
 - **Knowledge Graph MCP Server**: Structured knowledge representation
 
+## Global MCP Server Integration
+
+### Configuration Paths
+
+Each platform has specific locations for MCP configuration:
+
+1. **Claude Code**:
+   - Linux/macOS: `~/.config/claude-code/mcp.json`
+   - Windows: `%APPDATA%/Claude Code/mcp.json`
+
+2. **Claude Desktop**:
+   - Linux/macOS: `~/.config/claude/claude_desktop_config.json`
+   - Windows: `%APPDATA%/Claude/claude_desktop_config.json`
+
+3. **Cline.bot**:
+   - All platforms: `~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
+
+### Standard Configuration Format
+
+All platforms use a common JSON structure:
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "${HOME}/Desktop", "${HOME}/Downloads"]
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    "browser-tools": {
+      "command": "npx",
+      "args": ["@agentdeskai/browser-tools-mcp@latest"]
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@latest"]
+    },
+    "puppeteer": {
+      "command": "npx",
+      "args": ["-y", "puppeteer-mcp-server"]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    }
+  },
+  "security": {
+    "allowAllMCPToolPermissions": false,
+    "requireToolApproval": true,
+    "fileSystemAccess": {
+      "allowedPaths": ["${HOME}/Desktop", "${HOME}/Downloads", "${HOME}/Documents"],
+      "disallowedPaths": ["${HOME}/.ssh", "${HOME}/.config", "${HOME}/.aws"]
+    }
+  }
+}
+```
+
+### Global Installation
+
+1. **Install Required Dependencies**:
+   ```bash
+   # Install Node.js dependencies
+   npm install -g @modelcontextprotocol/server-filesystem @modelcontextprotocol/server-memory @agentdeskai/browser-tools-mcp@latest @upstash/context7-mcp@latest puppeteer-mcp-server @modelcontextprotocol/server-sequential-thinking
+
+   # Pull Docker images
+   docker pull ghcr.io/github/github-mcp-server
+   ```
+
+2. **Configure Environment Variables**:
+   Create a `.env` file in your home directory:
+   ```bash
+   # GitHub integration
+   export GITHUB_PERSONAL_ACCESS_TOKEN="your_token_here"
+
+   # Other platform-specific tokens
+   export CONFLUENCE_API_TOKEN="your_token_here"
+   export JIRA_API_TOKEN="your_token_here"
+   ```
+
+3. **Run Configuration Scripts**:
+   ```bash
+   # Configure all platforms
+   bash scripts/configure-claude-code.sh
+   bash scripts/configure-claude-desktop.sh
+   bash scripts/configure-vscode-cline.sh
+   ```
+
+### Security Best Practices
+
+1. **File Permissions**:
+   ```bash
+   # Set restrictive permissions on config files
+   chmod 600 ~/.config/claude-code/mcp.json
+   chmod 600 ~/.config/claude/claude_desktop_config.json
+   chmod 600 ~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json
+   ```
+
+2. **Environment Variables**:
+   - Store sensitive tokens in environment variables
+   - Use separate tokens for different platforms
+   - Regularly rotate tokens
+   - Never commit tokens to version control
+
+3. **Access Control**:
+   - Configure allowedPaths to limit filesystem access
+   - Enable requireToolApproval for sensitive operations
+   - Use allowAllMCPToolPermissions=false by default
+   - Regularly audit server permissions
+
+### Health Checks
+
+Verify MCP server status across platforms:
+
+```bash
+# Check Claude Code servers
+claude mcp list
+
+# Check Claude Desktop
+bash scripts/health-check.sh
+
+# Check Cline.bot
+code --list-extensions | grep claude
+```
+
+### Troubleshooting
+
+1. **Server Connection Issues**:
+   ```bash
+   # Check if servers are running
+   ps aux | grep mcp
+   docker ps | grep mcp
+   ```
+
+2. **Permission Errors**:
+   ```bash
+   # Fix config file permissions
+   chmod 600 ~/.config/claude*/mcp*.json
+   ```
+
+3. **Missing Dependencies**:
+   ```bash
+   # Reinstall Node.js packages
+   npm install -g @modelcontextprotocol/server-filesystem @modelcontextprotocol/server-memory
+
+   # Rebuild Docker images
+   docker pull ghcr.io/github/github-mcp-server
+   ```
+
+4. **Log Analysis**:
+   ```bash
+   # View server logs
+   cat ~/.config/claude/logs/mcp-servers.log
+   ```
+
+### Cross-Platform Compatibility
+
+1. **Path Formatting**:
+   - Use ${HOME} for user home directory
+   - Use forward slashes (/) even on Windows
+   - Use environment variables for system paths
+
+2. **Server Commands**:
+   - Use npx for Node.js servers
+   - Use docker run --rm for containerized servers
+   - Set appropriate environment variables
+
+3. **Configuration Sync**:
+   - Use scripts/sync-env-to-config.sh to sync settings
+   - Maintain consistent security settings
+   - Keep server versions aligned
+
+## Global MCP Configuration
+
+The MCP servers can be configured globally across different platforms to ensure consistent capabilities:
+
+### Claude Code Global Configuration
+
+1. **Location**: `~/.config/claude-code/mcp.json` (Linux/macOS) or `%APPDATA%/Claude Code/mcp.json` (Windows)
+2. **Configuration**:
+   ```bash
+   bash scripts/configure-claude-code.sh
+   ```
+   This will set up MCP servers globally for all Claude Code workspaces.
+
+### Claude Desktop Configuration
+
+1. **Location**: 
+   - Linux/macOS: `~/.config/claude/claude_desktop_config.json`
+   - Windows: `%APPDATA%/Claude/claude_desktop_config.json`
+2. **Configuration**:
+   ```bash
+   bash scripts/configure-claude-desktop.sh
+   ```
+   This enables MCP capabilities in the Claude Desktop application.
+
+### Cline.bot Global Configuration
+
+1. **Location**: `~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
+2. **Configuration**:
+   ```bash
+   bash scripts/configure-vscode-cline.sh
+   ```
+   This sets up global MCP settings for all VS Code workspaces using Cline.
+
+### Common Configuration Options
+
+All platforms support these core MCP servers:
+
+1. **GitHub Integration**:
+   ```json
+   {
+     "github": {
+       "command": "docker",
+       "args": ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server"],
+       "env": {
+         "GITHUB_PERSONAL_ACCESS_TOKEN": "your_token_here"
+       }
+     }
+   }
+   ```
+
+2. **Filesystem Access**:
+   ```json
+   {
+     "filesystem": {
+       "command": "npx",
+       "args": ["-y", "@modelcontextprotocol/server-filesystem", "path1", "path2"]
+     }
+   }
+   ```
+
+3. **Memory Management**:
+   ```json
+   {
+     "memory": {
+       "command": "npx",
+       "args": ["-y", "@modelcontextprotocol/server-memory"]
+     }
+   }
+   ```
+
+### Security Considerations
+
+When configuring MCPs globally:
+
+1. **File Permissions**:
+   - Config files should have 600 permissions (user read/write only)
+   - Environment files should be secured similarly
+
+2. **Token Management**:
+   - Store tokens in environment variables
+   - Use separate tokens for different platforms if needed
+   - Regularly rotate tokens
+
+3. **Access Control**:
+   - Limit filesystem access to necessary directories
+   - Configure allowlists for external API access
+   - Enable tool approval requirements where needed
+
+
 ## Directory Structure
 
 ```
